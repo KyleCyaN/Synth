@@ -61,7 +61,8 @@ void CollectAllBones(std::vector<BoneInfo> &outAllBones)
 			BoneInfo bone;
 			bone.nodeAddress = bonePtr;
 			bone.boneName = boneType;
-			if (!Memory::SafeReadFloat(corBasePtr + 0x40, bone.x) || !Memory::SafeReadFloat(corBasePtr + 0x44, bone.y) || !
+			if (!Memory::SafeReadFloat(corBasePtr + 0x40, bone.x) ||
+				!Memory::SafeReadFloat(corBasePtr + 0x44, bone.y) || !
 			    Memory::SafeReadFloat(corBasePtr + 0x48, bone.z)) continue;
 			if (std::isnan(bone.x) || std::isinf(bone.x) || std::isnan(bone.y) || std::isinf(bone.y) ||
 			    std::isnan(bone.z) || std::isinf(bone.z)) continue;

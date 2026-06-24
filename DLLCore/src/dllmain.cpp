@@ -6,17 +6,19 @@
 #include "imgui.h"
 #include <chrono>
 #include <atomic>
+#include <ShellScalingApi.h>
 
 #include "imgui_internal.h"
-#include "Input.h"
 #include "memory.h"
 #include "menu.h"
 #include "backends/imgui_impl_dx11.h"
 #include "../Shared/shared.h"
 
+#pragma comment(lib, "Shcore.lib")
 #pragma comment(lib, "MinHook.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "Shcore.lib")
 
 static ID3D11Device* g_pd3dDevice = nullptr;
 static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
@@ -35,62 +37,113 @@ Present_t OriginalPresent = nullptr;
 typedef HRESULT (WINAPI*ResizeBuffers_t)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 ResizeBuffers_t OriginalResizeBuffers = nullptr;
 
-void Log(const char* msg)
+static auto g_BackBufferSize = ImVec2(0, 0);
+static RECT g_WindowRect = {0};
+
+static float GetDpiScale()
 {
-    OutputDebugStringA(msg);
+    static float scale = 1.0f;
+    static bool init = false;
+    if (!init && g_hWnd)
+    {
+        UINT dpiX = 96, dpiY = 96;
+        GetDpiForMonitor(
+            MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTOPRIMARY),
+            MDT_EFFECTIVE_DPI,
+            &dpiX, &dpiY
+        );
+        scale = dpiX / 96.0f;
+        init = true;
+    }
+    return scale;
+}
+
+static ImVec2 GetCorrectedMousePos()
+{
+    POINT p{};
+    GetCursorPos(&p);
+
+    if (g_WindowRect.right == g_WindowRect.left)
+        GetWindowRect(g_hWnd, &g_WindowRect);
+
+    const float scale = GetDpiScale();
+
+    float x = static_cast<float>(p.x - g_WindowRect.left) * scale;
+    float y = static_cast<float>(p.y - g_WindowRect.top) * scale;
+
+    const auto wndW = static_cast<float>(g_WindowRect.right - g_WindowRect.left);
+    const auto wndH = static_cast<float>(g_WindowRect.bottom - g_WindowRect.top);
+
+    if (wndW <= 0.0f || wndH <= 0.0f || g_BackBufferSize.x <= 0.0f)
+        return {0, 0};
+
+    x *= g_BackBufferSize.x / wndW;
+    y *= g_BackBufferSize.y / wndH;
+
+    return {x, y};
 }
 
 void UpdateWindowTransparency()
 {
     if (fabs(g_WindowAlpha - g_TargetAlpha) > 0.001f)
     {
-        g_WindowAlpha += (g_TargetAlpha - g_WindowAlpha) *
-            g_AlphaTransitionSpeed * ImGui::GetIO().DeltaTime;
+        g_WindowAlpha += (g_TargetAlpha - g_WindowAlpha)
+            * g_AlphaTransitionSpeed * ImGui::GetIO().DeltaTime;
         g_WindowAlpha = fmaxf(0.0f, fminf(1.0f, g_WindowAlpha));
-        ImGuiStyle& style = ImGui::GetStyle();
-        style.Alpha = g_WindowAlpha;
+        ImGui::GetStyle().Alpha = g_WindowAlpha;
     }
 }
 
 void UpdateMouse(ImGuiIO& io)
 {
-    uintptr_t mouseFlagsAddr = Memory::ResolveAddress("WindowsEntryPoint.Windows_W10.exe+01C78D38->0x0->0x28->0x28");
+    static bool lastDown = false;
+
+    const uintptr_t mouseFlagsAddr = Memory::ResolveAddress("WindowsEntryPoint.Windows_W10.exe+01CF5D08->0x268");
 
     if (!mouseFlagsAddr)
+    {
+        io.MouseDown[0] = lastDown;
+        io.AddMouseButtonEvent(0, lastDown);
         return;
+    }
 
-    const int mouseFlagsValue = *(int*)mouseFlagsAddr;
-    const bool curDown = (mouseFlagsValue != 0);
+    const bool curDown = (*reinterpret_cast<int*>(mouseFlagsAddr)) != 0;
 
-    static bool lastDown = false;
     if (curDown != lastDown)
     {
         io.AddMouseButtonEvent(0, curDown);
         lastDown = curDown;
     }
+
+    io.MouseDown[0] = curDown;
 }
 
 void UpdateInput()
 {
     ImGuiIO& io = ImGui::GetIO();
-    GameInput* gi = GetGameInput();
-
-    if (gi)
-        io.MousePos = ImVec2(gi->mouseX, gi->mouseY);
-
-    const bool wasFocused = g_ImGuiHasFocus;
-
-    g_ImGuiHasFocus = io.WantCaptureMouse &&
-    (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) ||
-        ImGui::IsAnyItemActive());
-
-    if (g_ImGuiHasFocus != wasFocused)
-        g_TargetAlpha = g_ImGuiHasFocus ? g_FocusedAlpha : g_UnfocusedAlpha;
-
+    io.MousePos = GetCorrectedMousePos();
     UpdateMouse(io);
 
+    if (ImGui::IsMouseDragging(0))
+    {
+        io.WantCaptureMouse = true;
+        g_ImGuiHasFocus = true;
+        g_TargetAlpha = g_FocusedAlpha;
+    }
+    else
+    {
+        const bool wasFocused = g_ImGuiHasFocus;
+
+        g_ImGuiHasFocus = io.WantCaptureMouse &&
+        (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) ||
+            ImGui::IsAnyItemActive());
+
+        if (g_ImGuiHasFocus != wasFocused)
+            g_TargetAlpha = g_ImGuiHasFocus ? g_FocusedAlpha : g_UnfocusedAlpha;
+    }
+
     static auto last = std::chrono::high_resolution_clock::now();
-    auto now = std::chrono::high_resolution_clock::now();
+    const auto now = std::chrono::high_resolution_clock::now();
     io.DeltaTime = std::chrono::duration<float>(now - last).count();
     last = now;
 }
@@ -108,7 +161,7 @@ Present_t GetPresentAddress()
         L"D3D11_Temp_Window", nullptr
     };
     RegisterClassEx(&wc);
-    HWND hWnd = CreateWindowEx(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
+    const HWND hWnd = CreateWindowEx(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
                                CW_USEDEFAULT, CW_USEDEFAULT, 100, 100,
                                nullptr, nullptr, wc.hInstance, nullptr);
     if (!hWnd) return nullptr;
@@ -331,7 +384,6 @@ HRESULT WINAPI HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT
                                          io.Fonts->GetGlyphRangesChineseFull());
             UIMenu::Initialize();
             g_ImGuiInit = true;
-            Log("ImGui initialized (keyboard-only, no Win32 backend)");
         }
         if (!g_ImGuiInit) return OriginalPresent(pSwapChain, SyncInterval, Flags);
     }
@@ -342,8 +394,9 @@ HRESULT WINAPI HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT
 
     D3D11_TEXTURE2D_DESC bbDesc;
     pBackBuffer->GetDesc(&bbDesc);
-    const auto width = static_cast<float>(bbDesc.Width);
-    const auto height = static_cast<float>(bbDesc.Height);
+    g_BackBufferSize = ImVec2((float)bbDesc.Width, (float)bbDesc.Height);
+
+    GetWindowRect(g_hWnd, &g_WindowRect);
 
     if (!g_pMainRTV)
     {
@@ -352,10 +405,9 @@ HRESULT WINAPI HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT
     pBackBuffer->Release();
 
     ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2(width, height);
+    io.DisplaySize = g_BackBufferSize;
 
     UpdateInput();
-
     UpdateWindowTransparency();
 
     ImGui_ImplDX11_NewFrame();
@@ -378,9 +430,9 @@ HRESULT WINAPI HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT
         UINT numViewports = 1;
         D3D11_VIEWPORT oldViewport;
         g_pd3dDeviceContext->RSGetViewports(&numViewports, &oldViewport);
-        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pMainRTV, nullptr);
 
-        D3D11_VIEWPORT vp = {0.0f, 0.0f, width, height, 0.0f, 1.0f};
+        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pMainRTV, nullptr);
+        D3D11_VIEWPORT vp = {0.0f, 0.0f, g_BackBufferSize.x, g_BackBufferSize.y, 0.0f, 1.0f};
         g_pd3dDeviceContext->RSSetViewports(1, &vp);
 
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -399,48 +451,35 @@ HRESULT WINAPI HookedPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT
 
 bool InstallHooks()
 {
-    Log("Installing Hooks...");
     Present_t pPresentTarget = GetPresentAddress();
     if (!pPresentTarget)
     {
-        Log("Failed to get Present address");
         return false;
     }
 
     ResizeBuffers_t pResizeTarget = GetResizeBuffersAddress();
-    if (!pResizeTarget) Log("Warning: Failed to get ResizeBuffers address");
 
     if (MH_Initialize() != MH_OK)
     {
-        Log("MH_Initialize failed");
         return false;
     }
 
     if (MH_CreateHook(pPresentTarget, &HookedPresent, (void**)&OriginalPresent) != MH_OK ||
         MH_EnableHook(pPresentTarget) != MH_OK)
     {
-        Log("MH_CreateHook Present failed");
         return false;
     }
-    if (pResizeTarget)
-    {
-        if (MH_CreateHook(pResizeTarget, &HookedResizeBuffers, (void**)&OriginalResizeBuffers) == MH_OK &&
-            MH_EnableHook(pResizeTarget) == MH_OK)
-            Log("ResizeBuffers hook installed");
-    }
-    Log("Hooks installed successfully");
+
     return true;
 }
 
 void ShutdownAndCleanup()
 {
-    Log("Shutdown started");
     g_IsUnloading = true;
 
     if (g_pShared)
     {
         g_pShared->unloadRequested = 2;
-        Log("Sent unload confirmation to injector");
         Sleep(500);
     }
 
@@ -472,14 +511,11 @@ void ShutdownAndCleanup()
         g_pd3dDevice->Release();
         g_pd3dDevice = nullptr;
     }
-
-    Log("Shutdown finished");
 }
 
 DWORD WINAPI UnloadThread(LPVOID lpParam)
 {
-    auto hModule = static_cast<HMODULE>(lpParam);
-    Log("UnloadThread started");
+    const auto hModule = static_cast<HMODULE>(lpParam);
 
     for (int retry = 0; retry < 20; ++retry)
     {
@@ -489,7 +525,6 @@ DWORD WINAPI UnloadThread(LPVOID lpParam)
     }
     if (!g_hMapFile)
     {
-        Log("OpenFileMapping failed in UnloadThread");
         return 0;
     }
 
@@ -497,22 +532,18 @@ DWORD WINAPI UnloadThread(LPVOID lpParam)
                                                        sizeof(SharedData)));
     if (!g_pShared)
     {
-        Log("MapViewOfFile failed in UnloadThread");
         CloseHandle(g_hMapFile);
         return 0;
     }
-    Log("Shared memory connected in UnloadThread");
 
     while (g_pShared->unloadRequested != 1)
     {
         Sleep(500);
         if (g_pShared->unloadRequested == 2)
         {
-            Log("Already unloaded, exiting UnloadThread");
             goto cleanup_exit;
         }
     }
-    Log("Unload request received");
 
     g_IsUnloading = true;
     Sleep(500);
@@ -522,7 +553,6 @@ DWORD WINAPI UnloadThread(LPVOID lpParam)
     if (g_pShared)
     {
         g_pShared->unloadRequested = 2;
-        Log("Sent unload confirmation (value=2) to injector");
         Sleep(300);
     }
 
@@ -532,14 +562,11 @@ cleanup_exit:
     g_pShared = nullptr;
     g_hMapFile = nullptr;
 
-    Log("UnloadThread exiting, calling FreeLibraryAndExitThread");
-
     FreeLibraryAndExitThread(hModule, 0);
 }
 
 DWORD WINAPI InitThread(LPVOID)
 {
-    Log("InitThread started");
     Sleep(500);
     InstallHooks();
     return 0;

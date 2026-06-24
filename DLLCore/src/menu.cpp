@@ -190,7 +190,7 @@ void UIMenu::Render()
 
         if (ImGui::BeginTabItem("Miscellaneous"))
         {
-            ImGui::Checkbox("Enable 5 Cores for Armor", &isFullCores);
+            // ImGui::Checkbox("Enable 5 Cores for Armor", &isFullCores);
             ImGui::Checkbox("Unlock 5K Credits for Battle Pass", &isBattlePass);
             ImGui::Checkbox("Instantly Complete Assassination Mission", &isAssassination);
             ImGui::Checkbox("Get VIP Points in High-Roll Credits Event ", &isVIP);

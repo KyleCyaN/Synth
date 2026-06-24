@@ -20,15 +20,13 @@ bool Aimbot::g_debugHasTarget = false;
 float Aimbot::g_debugTargetScreenPos[2] = {0, 0};
 float Aimbot::g_aimFov = 200.0f;
 
-static LPVOID AllocateNear(uintptr_t target) {
+static LPVOID AllocateNear(const uintptr_t target) {
     for (int i = 0; i < 524288; ++i) {
-        int dir = (i % 2 == 0) ? 1 : -1;
+        const int dir = (i % 2 == 0) ? 1 : -1;
         uintptr_t addr = target + dir * (i / 2) * 0x1000;
-        addr &= ~((uintptr_t)0xFFF);
-        LPVOID p = VirtualAlloc((LPVOID)addr, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        if (p) {
-            int64_t rel = (int64_t)((uintptr_t)p - (target + 5));
-            if (rel >= INT32_MIN && rel <= INT32_MAX)
+        addr &= ~static_cast<uintptr_t>(0xFFF);
+        if (LPVOID p = VirtualAlloc(reinterpret_cast<LPVOID>(addr), 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE)) {
+            if (const auto rel = static_cast<int64_t>(reinterpret_cast<uintptr_t>(p) - (target + 5)); rel >= INT32_MIN && rel <= INT32_MAX)
                 return p;
             VirtualFree(p, 0, MEM_RELEASE);
         }
@@ -47,7 +45,7 @@ static BYTE     g_pitchOrigBytes[8] = {0};
 static LPVOID   g_pitchShellcode = nullptr;
 
 bool Aimbot::InitGameFunctions() {
-    g_gameBase = (uintptr_t)GetModuleHandleA("WindowsEntryPoint.Windows_W10.exe");
+    g_gameBase = reinterpret_cast<uintptr_t>(GetModuleHandleA("WindowsEntryPoint.Windows_W10.exe"));
     return (g_gameBase != 0);
 }
 
@@ -63,10 +61,10 @@ static uintptr_t GetPitchObject() {
 
 static bool IsAimingDownSight() {
     if (!g_gameBase) return false;
-    uintptr_t addr = g_gameBase + 0x01C78958;
+    uintptr_t addr = g_gameBase + 0x01CF5D08;
     uintptr_t ptr1 = 0;
     if (!Memory::SafeReadPtr(addr, ptr1) || !ptr1) return false;
-    int value = Memory::ReadInt(ptr1 + 0x278);
+    const int value = static_cast<int> (Memory::ReadInt(ptr1 + 0x278));
     return (value != 0);
 }
 
@@ -129,11 +127,11 @@ static void BuildPitchShellcode(BYTE* code, size_t& i, uintptr_t hookAddr) {
     code[i++] = 0xF3; code[i++] = 0x0F; code[i++] = 0x10; code[i++] = 0x08;
     size_t skipAddr = i;
 
-    code[jePos] = (BYTE)(skipAddr - (jePos + 1));
+    code[jePos] = static_cast<BYTE>(skipAddr - (jePos + 1));
     code[i++] = 0x58;
     code[i++] = 0xE9;
 
-    auto jmpRel = (int32_t)(retAddr - ((uintptr_t)(code + i) + 4));
+    auto jmpRel = static_cast<int32_t>(retAddr - (reinterpret_cast<uintptr_t>(code + i) + 4));
     memcpy(&code[i], &jmpRel, 4); i += 4;
 }
 
@@ -150,20 +148,20 @@ bool Aimbot::InstallPitchHook() {
         return false;
     }
 
-    BYTE* code = (BYTE*)g_pitchShellcode;
+    const auto code = static_cast<BYTE*>(g_pitchShellcode);
     size_t i = 0;
     BuildPitchShellcode(code, i, g_pitchHookAddr);
 
-    memcpy(g_pitchOrigBytes, (LPVOID)g_pitchHookAddr, 8);
+    memcpy(g_pitchOrigBytes, reinterpret_cast<LPVOID>(g_pitchHookAddr), 8);
 
     DWORD oldProt;
-    VirtualProtect((LPVOID)g_pitchHookAddr, 8, PAGE_EXECUTE_READWRITE, &oldProt);
+    VirtualProtect(reinterpret_cast<LPVOID>(g_pitchHookAddr), 8, PAGE_EXECUTE_READWRITE, &oldProt);
     BYTE jmp[5] = { 0xE9 };
-    int32_t rel = (int32_t)((uintptr_t)g_pitchShellcode - (g_pitchHookAddr + 5));
+    const auto rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(g_pitchShellcode) - (g_pitchHookAddr + 5));
     memcpy(&jmp[1], &rel, 4);
-    memcpy((LPVOID)g_pitchHookAddr, jmp, 5);
-    memset((LPVOID)(g_pitchHookAddr + 5), 0x90, 3);
-    VirtualProtect((LPVOID)g_pitchHookAddr, 8, oldProt, &oldProt);
+    memcpy(reinterpret_cast<LPVOID>(g_pitchHookAddr), jmp, 5);
+    memset(reinterpret_cast<LPVOID>(g_pitchHookAddr + 5), 0x90, 3);
+    VirtualProtect(reinterpret_cast<LPVOID>(g_pitchHookAddr), 8, oldProt, &oldProt);
 
     g_pitchHookInstalled = true;
     return true;
@@ -172,9 +170,9 @@ bool Aimbot::InstallPitchHook() {
 void Aimbot::UninstallPitchHook() {
     if (!g_pitchHookInstalled) return;
     DWORD oldProt;
-    VirtualProtect((LPVOID)g_pitchHookAddr, 8, PAGE_EXECUTE_READWRITE, &oldProt);
-    memcpy((LPVOID)g_pitchHookAddr, g_pitchOrigBytes, 8);
-    VirtualProtect((LPVOID)g_pitchHookAddr, 8, oldProt, &oldProt);
+    VirtualProtect(reinterpret_cast<LPVOID>(g_pitchHookAddr), 8, PAGE_EXECUTE_READWRITE, &oldProt);
+    memcpy(reinterpret_cast<LPVOID>(g_pitchHookAddr), g_pitchOrigBytes, 8);
+    VirtualProtect(reinterpret_cast<LPVOID>(g_pitchHookAddr), 8, oldProt, &oldProt);
     if (g_pitchShellcode) {
         VirtualFree(g_pitchShellcode, 0, MEM_RELEASE);
         g_pitchShellcode = nullptr;
@@ -184,9 +182,8 @@ void Aimbot::UninstallPitchHook() {
 
 void Aimbot::Run() {
     int localTeam = 0;
-    uintptr_t localTeamAddr = Memory::ResolveAddress(TEAM_FRIEND_EXPR);
-    if (localTeamAddr) {
-        localTeam = *(int*)localTeamAddr;
+    if (uintptr_t localTeamAddr = Memory::ResolveAddress(TEAM_FRIEND_EXPR)) {
+        localTeam = *reinterpret_cast<int*>(localTeamAddr);
     }
 
     g_debugHasTarget = false;
@@ -271,9 +268,7 @@ void Aimbot::Run() {
     float targetPitch = -pixelDiffY * degreesPerPixelY;
     float currentPitch = Memory::ReadFloat(pitchObj + OFFSET_CONTROLLER_PITCH);
 
-    float dp = targetPitch - currentPitch;
-
-    if (fabsf(dp) > 0.1f) {
+    if (float dp = targetPitch - currentPitch; fabsf(dp) > 0.1f) {
         float residue = Memory::ReadFloat(pitchObj + 0x638);
         g_targetPitchDelta = (dp * smooth) / 0.02f - residue;
         Memory::WriteFloat(pitchObj + 0x638, 0.0f);
