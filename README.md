@@ -24,8 +24,8 @@
 - Recoilless  
 - Infinite Ammo
 - 5 Cores
-- Ghost
-- Fury  
+- Ghost mode
+- Teleport to enemies' head
 
 ### 👁️ Awareness
 - ESP  
