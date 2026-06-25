@@ -11,7 +11,7 @@
 #include "features/BotLobby.h"
 #include "features/FastRespawn.h"
 #include "features/FullCores.h"
-#include "features/Fury.h"
+#include "features/TeleportToHead.h"
 #include "features/Ghost.h"
 #include "features/InfiniteAmmo.h"
 #include "features/MoveSpeed.h"
@@ -95,7 +95,7 @@ namespace Features
     void FeaturesTick()
     {
         Aimbot::isEnabled = isAimbot;
-        Fury::isEnabled = isFury;
+        TeleportToHead::isEnabled = isFury;
         Ghost::isEnabled = isGhost;
 
         if (isAimbot)
@@ -202,7 +202,7 @@ namespace Features
         if (isFury && Ghost::isEnabled)
         {
             std::vector<PlayerInfo> players = GetPlayers();
-            Fury::Run(players);
+            TeleportToHead::Run(players);
         }
 
         static bool lastBattlePass = false;
