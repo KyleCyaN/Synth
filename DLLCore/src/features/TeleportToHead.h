@@ -2,7 +2,7 @@
 #include <vector>
 #include "ESP.h"
 
-namespace Fury {
+namespace TeleportToHead {
 	extern bool isEnabled;
 	void Run(std::vector<PlayerInfo> &players);
 	bool InitFunctions();

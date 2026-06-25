@@ -1,4 +1,4 @@
-#include "Fury.h"
+#include "TeleportToHead.h"
 #include "Ghost.h"
 #include "features.h"
 #include "memory.h"
@@ -6,12 +6,12 @@
 
 #include "Bones.h"
 
-bool Fury::isEnabled = false;
-float Fury::g_furyTargetPos[3] = {0, 0, 0};
-bool Fury::g_furyActive = false;
-int Fury::g_furyTargetIndex = -1;
+bool  TeleportToHead::isEnabled = false;
+float  TeleportToHead::g_furyTargetPos[3] = {0, 0, 0};
+bool  TeleportToHead::g_furyActive = false;
+int  TeleportToHead::g_furyTargetIndex = -1;
 
-bool Fury::InitFunctions() { return true; }
+bool  TeleportToHead::InitFunctions() { return true; }
 
 static uintptr_t GetPointer3()
 {
@@ -25,7 +25,7 @@ static int GetLocalTeam()
     return addr ? *(int*)addr : -1;
 }
 
-void Fury::Run(std::vector<PlayerInfo>& players)
+void  TeleportToHead::Run(std::vector<PlayerInfo>& players)
 {
     g_furyActive = false;
     g_furyTargetIndex = -1;
@@ -94,8 +94,8 @@ void Fury::Run(std::vector<PlayerInfo>& players)
     g_furyActive = true;
 }
 
-void Fury::Install()
+void  TeleportToHead::Install()
 {
 }
 
-void Fury::Uninstall() { g_furyActive = false; }
+void  TeleportToHead::Uninstall() { g_furyActive = false; }
