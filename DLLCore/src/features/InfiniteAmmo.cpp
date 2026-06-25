@@ -28,14 +28,12 @@ static LPVOID AllocateNear(uintptr_t target, size_t size)
 {
     for (int i = 0; i < 524288; ++i)
     {
-        int dir = (i % 2 == 0) ? 1 : -1;
+        const int dir = (i % 2 == 0) ? 1 : -1;
         uintptr_t addr = target + dir * (i / 2) * 0x1000;
-        addr &= ~((uintptr_t)0xFFF);
-        LPVOID p = VirtualAlloc((LPVOID)addr, size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        if (p)
+        addr &= ~static_cast<uintptr_t>(0xFFF);
+        if (LPVOID p = VirtualAlloc(reinterpret_cast<LPVOID>(addr), size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))
         {
-            int64_t rel = (int64_t)((uintptr_t)p - (target + 5));
-            if (rel >= INT32_MIN && rel <= INT32_MAX)
+            if (const auto rel = static_cast<int64_t>(reinterpret_cast<uintptr_t>(p) - (target + 5)); rel >= INT32_MIN && rel <= INT32_MAX)
                 return p;
             VirtualFree(p, 0, MEM_RELEASE);
         }
@@ -45,7 +43,7 @@ static LPVOID AllocateNear(uintptr_t target, size_t size)
 
 static bool GenerateShellcodeForHook(AmmoHookInfo& hookInfo, int hookIndex)
 {
-    BYTE* code = (BYTE*)hookInfo.shellcode;
+    const auto code = static_cast<BYTE*>(hookInfo.shellcode);
     size_t i = 0;
 
     switch (hookIndex)
@@ -147,7 +145,7 @@ static bool GenerateShellcodeForHook(AmmoHookInfo& hookInfo, int hookIndex)
             code[i++] = 0xC7;
             code[i++] = 0x41;
             code[i++] = 0x68;
-            int value = 1;
+            const int value = 1;
             memcpy(&code[i], &value, 4);
             i += 4;
             // mov eax, [rcx+68]
@@ -175,7 +173,7 @@ void InfiniteAmmo::Install()
 {
     if (g_GlobalInstalled) return;
 
-    g_ModuleBase = (uintptr_t)GetModuleHandleA("WindowsEntryPoint.Windows_W10.exe");
+    g_ModuleBase = reinterpret_cast<uintptr_t>(GetModuleHandleA("WindowsEntryPoint.Windows_W10.exe"));
     if (!g_ModuleBase)
     {
         return;
@@ -188,25 +186,24 @@ void InfiniteAmmo::Install()
         size_t patternLen;
     };
 
-    AobPattern patterns[] = {
-        {{0xF3, 0x0F, 0x10, 0x4B, 0x28, 0x0F, 0xAF}, "xxxxxxx", 7},
-        {{0x89, 0x93, 0xA4, 0x02, 0x00, 0x00, 0x44, 0x89, 0x8B, 0xA8, 0x02, 0x00, 0x00, 0x44}, "xxxxxxxxxxxxxx", 14},
-        {{0x89, 0x01, 0x41, 0x80, 0xBD, 0xC8, 0x03, 0x00, 0x00, 0x00}, "xxxxxxxxxx", 10},
-        {{0x89, 0x91, 0xA4, 0x02, 0x00, 0x00}, "xxxxxx", 6},
-        {
-            {
-                0x8B, 0x41, 0x68, 0x0F, 0xAF, 0xD0, 0x48, 0x8B, 0x41, 0x70, 0x8B, 0x08, 0x8B, 0x05, 0x00, 0x00, 0x00,
-                0x00, 0x0F, 0xAF, 0xC1, 0x3B, 0xD0, 0x89
-            },
-            "xxxxxxxxxxxxxx????xxxxxx", 24
-        }
-    };
-
     for (int idx = 0; idx < 5; ++idx)
     {
+        AobPattern patterns[] = {
+            {{0xF3, 0x0F, 0x10, 0x4B, 0x28, 0x0F, 0xAF}, "xxxxxxx", 7},
+            {{0x89, 0x93, 0xA4, 0x02, 0x00, 0x00, 0x44, 0x89, 0x8B, 0xA8, 0x02, 0x00, 0x00, 0x44}, "xxxxxxxxxxxxxx", 14},
+            {{0x89, 0x01, 0x41, 0x80, 0xBD, 0xC8, 0x03, 0x00, 0x00, 0x00}, "xxxxxxxxxx", 10},
+            {{0x89, 0x91, 0xA4, 0x02, 0x00, 0x00}, "xxxxxx", 6},
+            {
+                {
+                    0x8B, 0x41, 0x68, 0x0F, 0xAF, 0xD0, 0x48, 0x8B, 0x41, 0x70, 0x8B, 0x08, 0x8B, 0x05, 0x00, 0x00, 0x00,
+                    0x00, 0x0F, 0xAF, 0xC1, 0x3B, 0xD0, 0x89
+                },
+                "xxxxxxxxxxxxxx????xxxxxx", 24
+            }
+        };
         AmmoHookInfo& hook = g_Hooks[idx];
 
-        uintptr_t found = Memory::FindPattern("WindowsEntryPoint.Windows_W10.exe", patterns[idx].pattern,patterns[idx].mask);
+        const uintptr_t found = Memory::FindPattern("WindowsEntryPoint.Windows_W10.exe", patterns[idx].pattern,patterns[idx].mask);
         if (!found)
         {
             continue;
@@ -225,12 +222,14 @@ void InfiniteAmmo::Install()
             break;
         case 4: hook.origBytesSize = 6;
             break;
+        default:
+            break;
         }
 
         DWORD oldProt;
-        VirtualProtect((LPVOID)hook.hookAddr, hook.origBytesSize, PAGE_EXECUTE_READWRITE, &oldProt);
-        memcpy(hook.origBytes, (LPVOID)hook.hookAddr, hook.origBytesSize);
-        VirtualProtect((LPVOID)hook.hookAddr, hook.origBytesSize, oldProt, &oldProt);
+        VirtualProtect(reinterpret_cast<LPVOID>(hook.hookAddr), hook.origBytesSize, PAGE_EXECUTE_READWRITE, &oldProt);
+        memcpy(hook.origBytes, reinterpret_cast<LPVOID>(hook.hookAddr), hook.origBytesSize);
+        VirtualProtect(reinterpret_cast<LPVOID>(hook.hookAddr), hook.origBytesSize, oldProt, &oldProt);
 
         hook.shellcode = AllocateNear(hook.hookAddr, 0x1000);
         if (!hook.shellcode)
@@ -245,25 +244,25 @@ void InfiniteAmmo::Install()
             continue;
         }
 
-        BYTE* code = (BYTE*)hook.shellcode;
-        size_t jmpPos = hook.shellcodeSize - 5;
-        int32_t jmpOffset = (int32_t)((hook.hookAddr + hook.origBytesSize) - ((uintptr_t)hook.shellcode + hook.
+        auto code = static_cast<BYTE*>(hook.shellcode);
+        const size_t jmpPos = hook.shellcodeSize - 5;
+        auto jmpOffset = static_cast<int32_t>((hook.hookAddr + hook.origBytesSize) - (reinterpret_cast<uintptr_t>(hook.shellcode) + hook.
             shellcodeSize));
         memcpy(&code[jmpPos + 1], &jmpOffset, 4);
 
-        VirtualProtect((LPVOID)hook.hookAddr, 5, PAGE_EXECUTE_READWRITE, &oldProt);
+        VirtualProtect(reinterpret_cast<LPVOID>(hook.hookAddr), 5, PAGE_EXECUTE_READWRITE, &oldProt);
         BYTE jmp[5] = {0xE9};
-        int32_t rel = (int32_t)((uintptr_t)hook.shellcode - (hook.hookAddr + 5));
+        auto rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(hook.shellcode) - (hook.hookAddr + 5));
         memcpy(&jmp[1], &rel, 4);
-        memcpy((LPVOID)hook.hookAddr, jmp, 5);
+        memcpy(reinterpret_cast<LPVOID>(hook.hookAddr), jmp, 5);
         if (hook.origBytesSize > 5)
         {
             for (size_t j = 5; j < hook.origBytesSize; ++j)
             {
-                *((BYTE*)(hook.hookAddr + j)) = 0x90; // nop
+                *reinterpret_cast<BYTE*>(hook.hookAddr + j) = 0x90; // nop
             }
         }
-        VirtualProtect((LPVOID)hook.hookAddr, 5, oldProt, &oldProt);
+        VirtualProtect(reinterpret_cast<LPVOID>(hook.hookAddr), 5, oldProt, &oldProt);
 
         hook.installed = true;
     }
@@ -280,9 +279,9 @@ void InfiniteAmmo::Uninstall()
         if (!hook.installed) continue;
 
         DWORD oldProt;
-        VirtualProtect((LPVOID)hook.hookAddr, hook.origBytesSize, PAGE_EXECUTE_READWRITE, &oldProt);
-        memcpy((LPVOID)hook.hookAddr, hook.origBytes, hook.origBytesSize);
-        VirtualProtect((LPVOID)hook.hookAddr, hook.origBytesSize, oldProt, &oldProt);
+        VirtualProtect(reinterpret_cast<LPVOID>(hook.hookAddr), hook.origBytesSize, PAGE_EXECUTE_READWRITE, &oldProt);
+        memcpy(reinterpret_cast<LPVOID>(hook.hookAddr), hook.origBytes, hook.origBytesSize);
+        VirtualProtect(reinterpret_cast<LPVOID>(hook.hookAddr), hook.origBytesSize, oldProt, &oldProt);
 
         if (hook.shellcode)
         {
