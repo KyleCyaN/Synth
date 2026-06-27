@@ -51,8 +51,8 @@
 #define FPS_PITCH_EXPR LOCAL_PLAYER_BASE "->0x308->0x90->0x160->0x38->0x630"
 #define TEAM_FRIEND_EXPR LOCAL_PLAYER_BASE "->0x308->0x90->0xA0"
 
-extern int targetAmmo;
-extern int currentAmmo;
+extern uint32_t targetAmmo;
+extern uint32_t currentAmmo;
 
 extern bool isInfiniteHealth;
 extern bool isInfiniteAmmo;
@@ -78,13 +78,13 @@ extern bool isFastRespawn;
 extern uintptr_t g_ModuleBase;
 extern DWORD g_GlobalPointerOffset;
 
-uint32_t DecryptAmmo1(uint32_t encryptedValue);
-uint32_t DecryptAmmo2(uint32_t encryptedValue);
-uint32_t EncryptAmmo1(uint32_t raw);
-uint32_t EncryptAmmo2(uint32_t raw);
+enum AmmoSlot { SLOT1 = 0, SLOT2 = 1 };
+enum AmmoOp  { ENC = 0, DEC = 1 };
+
+uint32_t CryptAmmo(uint32_t value, AmmoSlot slot, AmmoOp op);
 
 namespace Features
 {
-	void FeaturesTick();
-	void FeaturesAsm();
+	void FeaturesByMemory();
+	void FeaturesByAssembly();
 }

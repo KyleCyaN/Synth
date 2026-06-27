@@ -49,11 +49,7 @@ static float GetDpiScale() {
     static bool init = false;
     if (!init && g_hWnd) {
         UINT dpiX = 96, dpiY = 96;
-        GetDpiForMonitor(
-            MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTOPRIMARY),
-            MDT_EFFECTIVE_DPI,
-            &dpiX, &dpiY
-        );
+        GetDpiForMonitor(MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTOPRIMARY),MDT_EFFECTIVE_DPI,&dpiX, &dpiY);
         scale = dpiX / 96.0f;
         init = true;
     }
@@ -117,6 +113,7 @@ void UpdateMouse(ImGuiIO &io) {
 void UpdateInput() {
     ImGuiIO &io = ImGui::GetIO();
     io.MousePos = GetCorrectedMousePos();
+
     UpdateMouse(io);
 
     if (ImGui::IsMouseDragging(0)) {
@@ -320,7 +317,7 @@ HRESULT WINAPI HookedResizeBuffers(IDXGISwapChain *pSwapChain, UINT BufferCount,
         g_pMainRTV->Release();
         g_pMainRTV = nullptr;
     }
-    HRESULT hr = OriginalResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+    const HRESULT hr = OriginalResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
     if (SUCCEEDED(hr) && g_ImGuiInit) {
         ImGui_ImplDX11_InvalidateDeviceObjects();
     }
@@ -418,8 +415,8 @@ HRESULT WINAPI HookedPresent(IDXGISwapChain *pSwapChain, UINT SyncInterval, UINT
 }
 
 bool InstallHooks() {
-    Present_t pPresentTarget = GetPresentAddress();
-    if (!pPresentTarget) {
+    const Present_t presentTarget = GetPresentAddress();
+    if (!presentTarget) {
         return false;
     }
 
@@ -429,8 +426,8 @@ bool InstallHooks() {
         return false;
     }
 
-    if (MH_CreateHook(pPresentTarget, &HookedPresent, reinterpret_cast<void **>(&OriginalPresent)) != MH_OK ||
-        MH_EnableHook(pPresentTarget) != MH_OK) {
+    if (MH_CreateHook(presentTarget, &HookedPresent, reinterpret_cast<void **>(&OriginalPresent)) != MH_OK ||
+        MH_EnableHook(presentTarget) != MH_OK) {
         return false;
     }
 

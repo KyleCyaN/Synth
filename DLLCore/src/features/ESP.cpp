@@ -141,7 +141,7 @@ void DrawPlayerSkeleton(const std::vector<BoneInfo> &bones, const float hp, cons
     }
 }
 
-void DrawPlayerBox(const PlayerInfo &player, const float hp, const int team, const int localTeam, float distance) {
+void DrawPlayerBox(const PlayerInfo &player, const float hp, const uint32_t team, const int localTeam, float distance) {
     if (hp <= 34.0f) return;
 
     BoneInfo head;
@@ -150,18 +150,18 @@ void DrawPlayerBox(const PlayerInfo &player, const float hp, const int team, con
     ImDrawList *dl = ImGui::GetBackgroundDrawList();
     ImGuiIO &io = ImGui::GetIO();
 
-    float hx, hy, fx, fy;
-    if (!WorldToScreenPoint(head.x, head.y, head.z, hx, hy)) return;
+    float hy, fx, fy;
+    if (float hx; !WorldToScreenPoint(head.x, head.y, head.z, hx, hy)) return;
     if (!WorldToScreenPoint(player.X, player.Y, player.Z, fx, fy)) return;
 
-    float height = fabs(hy - fy);
-    float width = height * 0.5f;
-    float x = fx - width * 0.5f;
+    const float height = fabs(hy - fy);
+    const float width = height * 0.5f;
+    const float x = fx - width * 0.5f;
     float y = fy - height;
 
-    float barW = 4.0f;
-    float barH = height;
-    float barX = x - barW - 2.0f;
+    constexpr float barW = 4.0f;
+    const float barH = height;
+    const float barX = x - barW - 2.0f;
 
     dl->AddRectFilled(ImVec2(barX, y), ImVec2(barX + barW, y + barH), IM_COL32(0, 0, 0, 180));
 
@@ -172,7 +172,7 @@ void DrawPlayerBox(const PlayerInfo &player, const float hp, const int team, con
         GetHealthGradientColor(hpRatio)
     );
 
-    ImU32 boxColor = (team != localTeam)
+    const ImU32 boxColor = (team != localTeam)
                          ? IM_COL32(g_EnemyBoxColor[0], g_EnemyBoxColor[1], g_EnemyBoxColor[2], 255)
                          : IM_COL32(g_FriendBoxColor[0], g_FriendBoxColor[1], g_FriendBoxColor[2], 255);
 
@@ -190,13 +190,13 @@ void ESP::Render() {
     if (!GetViewMatrix()) return;
 
     int localTeam = 0;
-    if (uintptr_t a = Memory::ResolveAddress(TEAM_FRIEND_EXPR))
+    if (const uintptr_t a = Memory::ResolveAddress(TEAM_FRIEND_EXPR))
         localTeam = *reinterpret_cast<int *>(a);
 
     auto players = GetPlayers();
     if (players.empty()) return;
 
-    if (uintptr_t lp = Memory::ResolveAddress(LOCAL_PLAYER_POSITION_EXPR))
+    if (const uintptr_t lp = Memory::ResolveAddress(LOCAL_PLAYER_POSITION_EXPR))
         for (int i = 0; i < 3; i++)
             Memory::SafeReadFloat(lp + i * sizeof(float), LocalPlayerPosition[i]);
 

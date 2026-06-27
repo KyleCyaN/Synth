@@ -4,22 +4,21 @@
 
 std::vector<PlayerInfo> GetPlayers() {
 	std::vector<PlayerInfo> players;
-	uintptr_t baseAddr = Memory::ResolveAddress(ENEMY_LIST_EXPR);
+	const uintptr_t baseAddr = Memory::ResolveAddress(ENEMY_LIST_EXPR);
 	uintptr_t managerPtr = 0;
 	if (!Memory::SafeReadPtr(baseAddr, managerPtr) || !managerPtr) return players;
 
 	int playerOffset = 0x0;
-	int step = 0x8;
 
 	for (int i = 0; i < 100; i++) {
+		int step = 0x8;
 		uintptr_t playerCompPtr = 0;
 		if (!Memory::SafeReadPtr(managerPtr + i * 0x8, playerCompPtr)) continue;
 
-		uint32_t active = 0;
 		PlayerInfo p{};
 		p.addr_playerCompPtr = playerCompPtr;
 
-		if (!Memory::SafeReadInt(playerCompPtr + 0x278, active) || active != 1) {
+		if (uint32_t active = 0; !Memory::SafeReadInt(playerCompPtr + 0x278, active) || active != 1) {
 			p.isValid = false;
 			players.push_back(p);
 			playerOffset += step;
