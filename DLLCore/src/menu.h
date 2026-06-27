@@ -1,4 +1,5 @@
 #pragma once
+
 extern bool menuVisible;
 
 namespace UIMenu
@@ -8,6 +9,7 @@ namespace UIMenu
     void Shutdown();
 }
 
+inline extern bool g_IsChinese = false;
 inline extern float g_WindowAlpha = 1.0f;
 inline extern float g_TargetAlpha = 1.0f;
 inline extern float g_AlphaTransitionSpeed = 5.0f;
