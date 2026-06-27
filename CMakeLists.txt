@@ -15,6 +15,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 if(MSVC)
     add_compile_options(
+            /utf-8
             /Zc:__cplusplus
             /permissive-
             /MD
@@ -46,6 +47,36 @@ add_library(SynthDLL SHARED
         ${IMGUI_SOURCES}
 )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(GenerateLanguageHeader)
+
+set(LANG_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/languages")
+
+file(MAKE_DIRECTORY ${LANG_GEN_DIR})
+
+set(LANGUAGES
+        en_US
+        zh_CN
+        ja_JP
+        ru_RU
+        fr_FR
+        es_ES
+        pt_BR
+        ko_KR
+        ar_SA
+)
+
+foreach(LANG ${LANGUAGES})
+    generate_language_header(
+            "${CMAKE_CURRENT_SOURCE_DIR}/DLLCore/src/languages/json/${LANG}.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/DLLCore/src/languages/${LANG}.json.h"
+            ${LANG}_JSON
+    )
+endforeach()
+
+target_include_directories(SynthDLL PRIVATE ${LANG_GEN_DIR})
+
 set_target_properties(SynthDLL PROPERTIES
         AUTOUIC OFF
         AUTOMOC OFF
@@ -59,6 +90,7 @@ target_include_directories(SynthDLL PRIVATE
         DLLCore/include
         DLLCore/include/imgui
         DLLCore/include/MinHook
+        DLLCore/include/nlohmann
         DLLCore/src
         Shared
 )

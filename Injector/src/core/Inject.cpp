@@ -197,9 +197,9 @@ bool Inject::inject(DWORD processId, const QString& dllPath, HANDLE& hModule)
     StringFromGUID2(guidDll, guidDllStr, 39);
 
     std::wstring dllName(guidDllStr);
-    dllName.erase(std::remove(dllName.begin(), dllName.end(), L'{'), dllName.end());
-    dllName.erase(std::remove(dllName.begin(), dllName.end(), L'}'), dllName.end());
-    dllName.erase(std::remove(dllName.begin(), dllName.end(), L'-'), dllName.end());
+    std::erase(dllName, L'{');
+    std::erase(dllName, L'}');
+    std::erase(dllName, L'-');
     dllName += L".dll";
 
     std::wstring tempDllPath = tempDir + L"\\" + dllName;
@@ -224,12 +224,12 @@ bool Inject::inject(DWORD processId, const QString& dllPath, HANDLE& hModule)
         CloseHandle(hExistingMap);
     }
 
-    PSECURITY_DESCRIPTOR pSD = NULL;
+    PSECURITY_DESCRIPTOR pSD = nullptr;
     const WCHAR* sddl = L"D:"
         L"(A;OICI;GA;;;WD)"
         L"(A;OICI;GA;;;AC)";
 
-    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, SDDL_REVISION_1, &pSD, NULL))
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, SDDL_REVISION_1, &pSD, nullptr))
     {
         CleanupTempFiles();
         return false;
@@ -265,11 +265,11 @@ bool Inject::inject(DWORD processId, const QString& dllPath, HANDLE& hModule)
 
     if (!hProc || hProc == INVALID_HANDLE_VALUE)
     {
-        HANDLE hToken = NULL;
+        HANDLE hToken = nullptr;
         if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
         {
             TOKEN_PRIVILEGES tkp;
-            LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &tkp.Privileges[0].Luid);
+            LookupPrivilegeValue(nullptr, SE_DEBUG_NAME, &tkp.Privileges[0].Luid);
             tkp.PrivilegeCount = 1;
             tkp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
             AdjustTokenPrivileges(hToken, FALSE, &tkp, sizeof(tkp), nullptr, nullptr);
@@ -323,11 +323,11 @@ bool Inject::inject(DWORD processId, const QString& dllPath, HANDLE& hModule)
     UnmapViewOfFile(pShared);
     CloseHandle(hMapFile);
 
-    if (hModule == NULL)
+    if (hModule == nullptr)
     {
         CleanupTempFiles();
         m_isInjected = false;
-        m_hInjectedModule = NULL;
+        m_hInjectedModule = nullptr;
         return false;
     }
 
@@ -352,7 +352,7 @@ bool Inject::unload()
     if (!hMapFile)
     {
         m_isInjected = false;
-        m_hInjectedModule = NULL;
+        m_hInjectedModule = nullptr;
         CleanupTempFiles();
         return true;
     }
@@ -372,7 +372,7 @@ bool Inject::unload()
         CloseHandle(hMapFile);
 
         m_isInjected = false;
-        m_hInjectedModule = NULL;
+        m_hInjectedModule = nullptr;
         CleanupTempFiles();
         return true;
     }
@@ -401,7 +401,7 @@ bool Inject::unload()
     }
 
     m_isInjected = false;
-    m_hInjectedModule = NULL;
+    m_hInjectedModule = nullptr;
     CleanupTempFiles();
     return true;
 }
@@ -424,5 +424,5 @@ bool Inject::setDllPermissions(const QString& dllPath)
 
 HANDLE Inject::OpenProcessWithNtApi(DWORD processId)
 {
-    return NULL;
+    return nullptr;
 }

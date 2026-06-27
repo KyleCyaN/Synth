@@ -18,13 +18,11 @@ std::vector<BoneInfo> g_headBones;
 float ViewMatrix[16];
 float LocalPlayerPosition[3];
 
-bool GetViewMatrix()
-{
+bool GetViewMatrix() {
     static uintptr_t cached = 0;
     static DWORD last = 0;
     DWORD now = GetTickCount();
-    if (now - last > 1000)
-    {
+    if (now - last > 1000) {
         cached = Memory::ResolveAddress(VIEW_MATRIX_EXPR);
         last = now;
     }
@@ -35,39 +33,37 @@ bool GetViewMatrix()
     return true;
 }
 
-bool WorldToScreenPoint(float x, float y, float z, float& sx, float& sy)
-{
-    float w =
-        ViewMatrix[3] * x + ViewMatrix[7] * y + ViewMatrix[11] * z + ViewMatrix[15];
+bool WorldToScreenPoint(const float x, const float y, const float z, float &sx, float &sy) {
+    const float w =
+            ViewMatrix[3] * x + ViewMatrix[7] * y + ViewMatrix[11] * z + ViewMatrix[15];
     if (w < 0.01f) return false;
 
-    float cx =
-        ViewMatrix[0] * x + ViewMatrix[4] * y + ViewMatrix[8] * z + ViewMatrix[12];
-    float cy =
-        ViewMatrix[1] * x + ViewMatrix[5] * y + ViewMatrix[9] * z + ViewMatrix[13];
+    const float cx =
+            ViewMatrix[0] * x + ViewMatrix[4] * y + ViewMatrix[8] * z + ViewMatrix[12];
+    const float cy =
+            ViewMatrix[1] * x + ViewMatrix[5] * y + ViewMatrix[9] * z + ViewMatrix[13];
 
-    ImGuiIO& io = ImGui::GetIO();
+    const ImGuiIO &io = ImGui::GetIO();
     sx = (io.DisplaySize.x * 0.5f) * (1.0f + cx / w);
     sy = (io.DisplaySize.y * 0.5f) * (1.0f - cy / w);
     return true;
 }
 
-float CalculateDistance(float x1, float y1, float z1, float x2, float y2, float z2)
-{
-    float dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+float CalculateDistance(const float x1, const float y1, const float z1, const float x2, const float y2,
+                        const float z2) {
+    const float dx = x2 - x1;
+    const float dy = y2 - y1;
+    const float dz = z2 - z1;
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
-bool GetHeadForPlayer(const PlayerInfo& player, BoneInfo& outHead)
-{
+bool GetHeadForPlayer(const PlayerInfo &player, BoneInfo &outHead) {
     float minDist = 2.0f;
     bool found = false;
-    for (const auto& bone : player.bones)
-    {
+    for (const auto &bone: player.bones) {
         if (bone.boneName != "Bip01_Head") continue;
         float d = CalculateDistance(player.X, player.Y, player.Z, bone.x, bone.y, bone.z);
-        if (d < minDist)
-        {
+        if (d < minDist) {
             minDist = d;
             outHead = bone;
             found = true;
@@ -76,43 +72,39 @@ bool GetHeadForPlayer(const PlayerInfo& player, BoneInfo& outHead)
     return found;
 }
 
-inline ImU32 GetHealthGradientColor(float p)
-{
-    int r = (int)(255.0f * (1.0f - p));
-    int g = (int)(255.0f * p);
+inline ImU32 GetHealthGradientColor(const float p) {
+    int r = static_cast<int>(255.0f * (1.0f - p));
+    int g = static_cast<int>(255.0f * p);
     return IM_COL32(r, g, 0, 255);
 }
 
-void DrawPlayerSkeleton(const std::vector<BoneInfo>& bones, float hp, float distance)
-{
+void DrawPlayerSkeleton(const std::vector<BoneInfo> &bones, const float hp, const float distance) {
     if (hp <= 34.0f || bones.empty()) return;
 
-    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+    ImDrawList *dl = ImGui::GetBackgroundDrawList();
     int alpha = (distance > 50.f) ? 100 : (distance > 30.f) ? 160 : 210;
 
     ImU32 boneColor = IM_COL32(g_BoneColor[0], g_BoneColor[1], g_BoneColor[2], alpha);
     ImU32 jointColor = IM_COL32(g_JointColor[0], g_JointColor[1], g_JointColor[2], alpha);
 
-    auto findBone = [&](const char* n) -> const BoneInfo*
-    {
-        for (auto& b : bones) if (b.boneName == n) return &b;
+    auto findBone = [&](const char *n) -> const BoneInfo * {
+        for (auto &b: bones) if (b.boneName == n) return &b;
         return nullptr;
     };
 
-    const BoneInfo* head = findBone("Bip01_Head");
-    const BoneInfo* spine = findBone("Bip01_Spine");
-    const BoneInfo* pelvis = findBone("Bip01_Pelvis");
-    const BoneInfo* lUA = findBone("Bip01_L_UpperArm");
-    const BoneInfo* rUA = findBone("Bip01_R_UpperArm");
-    const BoneInfo* lFA = findBone("Bip01_L_Forearm");
-    const BoneInfo* rFA = findBone("Bip01_R_Forearm");
-    const BoneInfo* lT = findBone("Bip01_L_Thigh");
-    const BoneInfo* rT = findBone("Bip01_R_Thigh");
-    const BoneInfo* lC = findBone("Bip01_L_Calf");
-    const BoneInfo* rC = findBone("Bip01_R_Calf");
+    const BoneInfo *head = findBone("Bip01_Head");
+    const BoneInfo *spine = findBone("Bip01_Spine");
+    const BoneInfo *pelvis = findBone("Bip01_Pelvis");
+    const BoneInfo *lUA = findBone("Bip01_L_UpperArm");
+    const BoneInfo *rUA = findBone("Bip01_R_UpperArm");
+    const BoneInfo *lFA = findBone("Bip01_L_Forearm");
+    const BoneInfo *rFA = findBone("Bip01_R_Forearm");
+    const BoneInfo *lT = findBone("Bip01_L_Thigh");
+    const BoneInfo *rT = findBone("Bip01_R_Thigh");
+    const BoneInfo *lC = findBone("Bip01_L_Calf");
+    const BoneInfo *rC = findBone("Bip01_R_Calf");
 
-    auto line = [&](const BoneInfo* a, const BoneInfo* b, ImU32 c, const ImGuiIO& io)
-    {
+    auto line = [&](const BoneInfo *a, const BoneInfo *b, ImU32 c, const ImGuiIO &io) {
         if (!a || !b) return;
 
         bool aOn = a->isOnScreen;
@@ -126,7 +118,7 @@ void DrawPlayerSkeleton(const std::vector<BoneInfo>& bones, float hp, float dist
 
         dl->AddLine(ImVec2(ax, ay), ImVec2(bx, by), c, 1.5f);
     };
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
 
     line(head, spine, boneColor, io);
     line(spine, pelvis, boneColor, io);
@@ -143,22 +135,20 @@ void DrawPlayerSkeleton(const std::vector<BoneInfo>& bones, float hp, float dist
     line(pelvis, rT, boneColor, io);
     line(rT, rC, boneColor, io);
 
-    for (auto& b : bones)
-    {
+    for (auto &b: bones) {
         if (!b.isOnScreen) continue;
         dl->AddCircleFilled(ImVec2(b.screenX, b.screenY), 2.5f, jointColor);
     }
 }
 
-void DrawPlayerBox(PlayerInfo& player, float hp, int team, int localTeam, float distance)
-{
+void DrawPlayerBox(const PlayerInfo &player, const float hp, const int team, const int localTeam, float distance) {
     if (hp <= 34.0f) return;
 
     BoneInfo head;
     if (!GetHeadForPlayer(player, head)) return;
 
-    ImDrawList* dl = ImGui::GetBackgroundDrawList();
-    ImGuiIO& io = ImGui::GetIO();
+    ImDrawList *dl = ImGui::GetBackgroundDrawList();
+    ImGuiIO &io = ImGui::GetIO();
 
     float hx, hy, fx, fy;
     if (!WorldToScreenPoint(head.x, head.y, head.z, hx, hy)) return;
@@ -195,14 +185,13 @@ void DrawPlayerBox(PlayerInfo& player, float hp, int team, int localTeam, float 
     dl->AddText(ImVec2(fx - 20, fy - height - 14), boxColor, txt);
 }
 
-void ESP::Render()
-{
+void ESP::Render() {
     if (!isESP) return;
     if (!GetViewMatrix()) return;
 
     int localTeam = 0;
     if (uintptr_t a = Memory::ResolveAddress(TEAM_FRIEND_EXPR))
-        localTeam = *reinterpret_cast<int*>(a);
+        localTeam = *reinterpret_cast<int *>(a);
 
     auto players = GetPlayers();
     if (players.empty()) return;
@@ -214,13 +203,12 @@ void ESP::Render()
     std::vector<BoneInfo> allBones;
     CollectAllBones(allBones);
 
-    for (auto& b : allBones)
+    for (auto &b: allBones)
         b.isOnScreen = WorldToScreenPoint(b.x, b.y, b.z, b.screenX, b.screenY);
 
     DistributeBonesToPlayers(players, allBones);
 
-    for (auto& p : players)
-    {
+    for (auto &p: players) {
         if (!p.isValid) continue;
         if (p.HP <= 34.0f) continue;
 
@@ -237,10 +225,9 @@ void ESP::Render()
         DrawPlayerBox(p, p.HP, p.Team, localTeam, p.distance);
     }
 
-    if (isAimbot)
-    {
-        ImDrawList* dl = ImGui::GetBackgroundDrawList();
-        ImGuiIO& io = ImGui::GetIO();
+    if (isAimbot) {
+        ImDrawList *dl = ImGui::GetBackgroundDrawList();
+        const ImGuiIO &io = ImGui::GetIO();
         dl->AddCircle(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             Aimbot::g_aimFov,
