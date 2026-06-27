@@ -2,7 +2,6 @@
 #include "imgui.h"
 #include "features.h"
 #include "language.h"
-#include "shared.h"
 #include "features/Aimbot.h"
 #include "features/MoveSpeed.h"
 #include "fonts/noto_arabic_font.h"
@@ -116,7 +115,7 @@ void UIMenu::Render() {
 
     if (!menuVisible) {
         ImGui::End();
-        Features::FeaturesTick();
+        Features::FeaturesByMemory();
         return;
     }
 
@@ -133,7 +132,7 @@ void UIMenu::Render() {
             ImGui::SliderFloat(LOC("battle.aim_factor"), &Aimbot::smooth, 0.05f, 0.35f, "%.2f");
             ImGui::Checkbox(LOC("battle.radar"), &isRadar);
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip(LOC("battle.radar.tips"));
+                ImGui::SetTooltip("%s", LOC("battle.radar.tips"));
             }
             ImGui::Checkbox(LOC("battle.infinite_ammo"), &isInfiniteAmmo);
             ImGui::SameLine();
@@ -149,9 +148,9 @@ void UIMenu::Render() {
             ImGui::SameLine();
             ImGui::Checkbox(LOC("battle.teleport_to_enemies_head"), &isFury);
             ImGui::SameLine();
-            ImGui::TextDisabled(LOC("battle.teleport_to_enemies_head.desc"));
+            ImGui::TextDisabled("%s", LOC("battle.teleport_to_enemies_head.desc"));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip(LOC("battle.teleport_to_enemies_head.tips"));
+                ImGui::SetTooltip("%s", LOC("battle.teleport_to_enemies_head.tips"));
             }
             ImGui::EndTabItem();
         }
@@ -162,10 +161,10 @@ void UIMenu::Render() {
             ImGui::SameLine();
             ImGui::Checkbox(LOC("esp.friend"), &g_showFriend);
             ImGui::Separator();
-            ImGui::Text(LOC("esp.box_color"));
+            ImGui::Text("%s", LOC("esp.box_color"));
             ImGui::Separator();
 
-            ImGui::Text(LOC("esp.box_color.enemy"));
+            ImGui::Text("%s", LOC("esp.box_color.enemy"));
             float enemyBoxPreview[3] = {
                 g_EnemyBoxColor[0] / 255.0f, g_EnemyBoxColor[1] / 255.0f, g_EnemyBoxColor[2] / 255.0f
             };
@@ -184,7 +183,7 @@ void UIMenu::Render() {
             ImGui::SliderInt("##EnemyB", &g_EnemyBoxColor[2], 0, 255);
             ImGui::PopItemWidth();
 
-            ImGui::Text(LOC("esp.box_color.friend"));
+            ImGui::Text("%s", LOC("esp.box_color.friend"));
             float teamBoxPreview[3] = {
                 g_FriendBoxColor[0] / 255.0f, g_FriendBoxColor[1] / 255.0f, g_FriendBoxColor[2] / 255.0f
             };
@@ -203,7 +202,7 @@ void UIMenu::Render() {
             ImGui::SliderInt("##FriendB", &g_FriendBoxColor[2], 0, 255);
             ImGui::PopItemWidth();
 
-            ImGui::Text(LOC("esp.fov_circle"));
+            ImGui::Text("%s", LOC("esp.fov_circle"));
             float fovPreview[3] = {
                 g_FovCircleColor[0] / 255.0f, g_FovCircleColor[1] / 255.0f, g_FovCircleColor[2] / 255.0f
             };
@@ -222,7 +221,7 @@ void UIMenu::Render() {
             ImGui::SliderInt("##FovB", &g_FovCircleColor[2], 0, 255);
             ImGui::PopItemWidth();
 
-            ImGui::Text(LOC("esp.bone_color"));
+            ImGui::Text("%s", LOC("esp.bone_color"));
             float bonePreview[3] = {g_BoneColor[0] / 255.0f, g_BoneColor[1] / 255.0f, g_BoneColor[2] / 255.0f};
             if (ImGui::ColorEdit3("##BonePicker", bonePreview,
                                   ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_DisplayRGB)) {
@@ -239,7 +238,7 @@ void UIMenu::Render() {
             ImGui::SliderInt("##BoneB", &g_BoneColor[2], 0, 255);
             ImGui::PopItemWidth();
 
-            ImGui::Text(LOC("esp.joint_color"));
+            ImGui::Text("%s", LOC("esp.joint_color"));
             float jointPreview[3] = {g_JointColor[0] / 255.0f, g_JointColor[1] / 255.0f, g_JointColor[2] / 255.0f};
             if (ImGui::ColorEdit3("##JointPicker", jointPreview,
                                   ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_DisplayRGB)) {
@@ -266,9 +265,9 @@ void UIMenu::Render() {
             ImGui::Checkbox(LOC("misc.assassination_mission"), &isAssassination);
             ImGui::Checkbox(LOC("misc.vip"), &isVIP);
             ImGui::SameLine();
-            ImGui::TextDisabled(LOC("misc.vip.desc"));
+            ImGui::TextDisabled("%s", LOC("misc.vip.desc"));
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip(LOC("misc.vip.tips"));
+                ImGui::SetTooltip("%s", LOC("misc.vip.tips"));
             }
             ImGui::EndTabItem();
         }
@@ -292,9 +291,7 @@ void UIMenu::Render() {
                     g_TargetAlpha = g_ImGuiHasFocus ? g_FocusedAlpha : g_UnfocusedAlpha;
                 }
 
-                ImGui::Text(g_ImGuiHasFocus
-                                ? LOC("settings.current_status.1")
-                                : LOC("settings.current_status.0"));
+                ImGui::Text("%s",g_ImGuiHasFocus? LOC("settings.current_status.1"): LOC("settings.current_status.0"));
                 ImGui::Text(LOC("settings.current_opacity"), g_WindowAlpha);
             }
 
@@ -305,5 +302,6 @@ void UIMenu::Render() {
     }
 
     ImGui::End();
-    Features::FeaturesTick();
+    Features::FeaturesByMemory();
+    Features::FeaturesByAssembly();
 }

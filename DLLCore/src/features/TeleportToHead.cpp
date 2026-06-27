@@ -21,11 +21,11 @@ static uintptr_t GetPointer3()
 
 static int GetLocalTeam()
 {
-    uintptr_t addr = Memory::ResolveAddress(TEAM_FRIEND_EXPR);
-    return addr ? *(int*)addr : -1;
+    const uintptr_t addr = Memory::ResolveAddress(TEAM_FRIEND_EXPR);
+    return addr ? *reinterpret_cast<int *>(addr) : -1;
 }
 
-void  TeleportToHead::Run(std::vector<PlayerInfo>& players)
+void TeleportToHead::Run(std::vector<PlayerInfo>& players)
 {
     g_furyActive = false;
     g_furyTargetIndex = -1;

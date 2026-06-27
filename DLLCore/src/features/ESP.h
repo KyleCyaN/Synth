@@ -33,7 +33,7 @@ struct PlayerInfo {
 	float distance = 0.0f;
 	bool isValid = false;
 
-	int Team = 0;
+	uint32_t Team = 0;
 
 	float headX{}, headY{}, headZ{};
 	bool hasHeadBone = false;

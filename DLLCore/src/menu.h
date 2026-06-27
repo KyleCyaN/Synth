@@ -1,5 +1,5 @@
 #pragma once
-
+#include <windows.h>
 extern bool menuVisible;
 
 namespace UIMenu
@@ -9,13 +9,13 @@ namespace UIMenu
     void Shutdown();
 }
 
-inline extern bool g_IsChinese = false;
-inline extern float g_WindowAlpha = 1.0f;
-inline extern float g_TargetAlpha = 1.0f;
-inline extern float g_AlphaTransitionSpeed = 5.0f;
-inline extern bool g_ImGuiHasFocus = false;
-inline extern float g_FocusedAlpha = 1.0f;
-inline extern float g_UnfocusedAlpha = 0.5f;
+inline bool g_IsChinese = false;
+inline float g_WindowAlpha = 1.0f;
+inline float g_TargetAlpha = 1.0f;
+inline float g_AlphaTransitionSpeed = 5.0f;
+inline bool g_ImGuiHasFocus = false;
+inline float g_FocusedAlpha = 1.0f;
+inline float g_UnfocusedAlpha = 0.5f;
 
 extern int g_BoxColor[3];
 extern int g_BoneColor[3];

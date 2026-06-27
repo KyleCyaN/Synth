@@ -1,6 +1,4 @@
 #pragma once
-#include <vector>
-#include "ESP.h"
 
 namespace Aimbot
 {
