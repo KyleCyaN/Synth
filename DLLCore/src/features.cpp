@@ -18,6 +18,7 @@
 #include "features/Players.h"
 #include "features/Radar.h"
 #include "features/Recoilless.h"
+#include "features/SilentAimbot.h"
 #include "features/VIP.h"
 
 constexpr uint64_t MOD = 0x100000000ULL;
@@ -60,6 +61,7 @@ bool isInfiniteAmmoExpert = false;
 bool isRapidFire = false;
 bool isRapidFireExpert = false;
 bool isAimbot = false;
+bool isSilentAimbot = false;
 bool isFullCores = false;
 bool isESP = false;
 bool isBotRoom = false;
@@ -92,6 +94,7 @@ namespace Features {
 
     void FeaturesByMemory() {
         Aimbot::isEnabled = isAimbot;
+        SilentAimbot::isEnabled = isSilentAimbot;
         TeleportToHead::isEnabled = isFury;
         Ghost::isEnabled = isGhost;
 
@@ -99,6 +102,9 @@ namespace Features {
             Aimbot::Run();
         else
             Aimbot::UninstallPitchHook();
+
+        if (isSilentAimbot)
+            SilentAimbot::Run();
 
         if (isESP)
             ESP::Render();
@@ -139,6 +145,7 @@ namespace Features {
             TeleportToHead::Run(players);
         }
 
+        FEATURE(SilentAimbot);
         FEATURE(RapidFire);
         FEATURE(BotRoom);
         FEATURE(FullCores);

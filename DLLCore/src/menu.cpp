@@ -4,6 +4,7 @@
 #include "language.h"
 #include "features/Aimbot.h"
 #include "features/MoveSpeed.h"
+#include "features/SilentAimbot.h"
 #include "fonts/noto_arabic_font.h"
 
 bool menuVisible = true;
@@ -130,6 +131,8 @@ void UIMenu::Render() {
             ImGui::Checkbox(LOC("battle.aimbot"), &isAimbot);
             ImGui::SliderFloat(LOC("battle.aim_range"), &Aimbot::g_aimFov, 100.0f, 400.0f, "%.0f");
             ImGui::SliderFloat(LOC("battle.aim_factor"), &Aimbot::smooth, 0.05f, 0.35f, "%.2f");
+            ImGui::Checkbox(LOC("battle.aimbot.silent"), &isSilentAimbot);
+            ImGui::SliderFloat(LOC("battle.aimbot.silent.fov"), &SilentAimbot::g_silentFov, 50.0f, 400.0f, "%.0f");
             ImGui::Checkbox(LOC("battle.radar"), &isRadar);
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("%s", LOC("battle.radar.tips"));

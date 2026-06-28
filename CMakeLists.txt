@@ -33,6 +33,7 @@ endif()
 file(GLOB DLL_SOURCES
         "DLLCore/src/*.cpp"
         "DLLCore/src/features/*.cpp"
+        "DLLCore/src/utils/*.cpp"
 )
 
 file(GLOB IMGUI_SOURCES
@@ -137,6 +138,8 @@ set(INJECTOR_SOURCES
 set(INJECTOR_HEADERS
         Injector/src/InjectorGUI.h
         Injector/src/core/Inject.h
+        DLLCore/src/utils/SynthUtils.cpp
+        DLLCore/src/utils/SynthUtils.h
 )
 
 add_executable(Injector

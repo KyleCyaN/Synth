@@ -59,6 +59,7 @@ extern bool isInfiniteAmmo;
 extern bool isInfiniteAmmoExpert;
 extern bool isRapidFire;
 extern bool isAimbot;
+extern bool isSilentAimbot;
 extern bool isESP;
 extern bool isBotRoom;
 extern bool isFullCores;

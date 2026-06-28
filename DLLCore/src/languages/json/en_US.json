@@ -10,6 +10,8 @@
   "general.bot_lobby": "Bot Lobby",
 
   "battle.aimbot": "Aimbot",
+  "battle.aimbot.silent": "Silent Aimbot",
+  "battle.aimbot.silent.fov": "Silent Aimbot FOV",
   "battle.aim_range": "Aim Range",
   "battle.aim_factor": "Aim Factor",
   "battle.radar": "Radar",
