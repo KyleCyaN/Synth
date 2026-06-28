@@ -10,6 +10,8 @@
   "general.bot_lobby": "人机房间",
 
   "battle.aimbot": "自瞄",
+  "battle.aimbot.silent": "静默自瞄",
+  "battle.aimbot.silent.fov": "静默自瞄范围",
   "battle.aim_range": "自瞄范围",
   "battle.aim_factor": "自瞄平滑度",
   "battle.radar": "雷达",

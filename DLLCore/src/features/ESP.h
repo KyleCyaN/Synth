@@ -2,6 +2,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstdint>
 
 struct PointerChainStep {
 	int step;
@@ -32,29 +33,19 @@ struct PlayerInfo {
 	float HP{};
 	float distance = 0.0f;
 	bool isValid = false;
-
 	uint32_t Team = 0;
-
 	float headX{}, headY{}, headZ{};
 	bool hasHeadBone = false;
-
 	uintptr_t addr_playerCompPtr = 0;
 	uintptr_t addr_tempPtr1 = 0;
 	uintptr_t addr_PosX = 0;
 	uintptr_t addr_PosY = 0;
 	uintptr_t addr_PosZ = 0;
 	uintptr_t addr_HP = 0;
-
 	std::vector<BoneInfo> bones;
 };
 
-extern std::vector<BoneInfo> g_headBones;
 extern float LocalPlayerPosition[3];
-extern float g_aimFovDeg;
-extern int g_FovCircleColor[3];
-
-bool WorldToScreenPoint(float x, float y, float z, float& sx, float& sy);
-float CalculateDistance(float x1, float y1, float z1, float x2, float y2, float z2);
 
 namespace ESP {
 	void Render();

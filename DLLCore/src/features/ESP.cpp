@@ -8,69 +8,23 @@
 #include "Players.h"
 #include "Bones.h"
 #include "Aimbot.h"
+#include "../utils/SynthUtils.h"
 #include "features.h"
 #include "imgui.h"
 #include "memory.h"
 #include "menu.h"
 
 std::vector<BoneInfo> g_headBones;
-
-float ViewMatrix[16];
 float LocalPlayerPosition[3];
 
-bool GetViewMatrix() {
-    static uintptr_t cached = 0;
-    static DWORD last = 0;
-    DWORD now = GetTickCount();
-    if (now - last > 1000) {
-        cached = Memory::ResolveAddress(VIEW_MATRIX_EXPR);
-        last = now;
-    }
-    if (!cached) return false;
-    for (int i = 0; i < 16; ++i)
-        if (!Memory::SafeReadFloat(cached + i * sizeof(float), ViewMatrix[i]))
-            return false;
-    return true;
-}
-
-bool WorldToScreenPoint(const float x, const float y, const float z, float &sx, float &sy) {
-    const float w =
-            ViewMatrix[3] * x + ViewMatrix[7] * y + ViewMatrix[11] * z + ViewMatrix[15];
-    if (w < 0.01f) return false;
-
-    const float cx =
-            ViewMatrix[0] * x + ViewMatrix[4] * y + ViewMatrix[8] * z + ViewMatrix[12];
-    const float cy =
-            ViewMatrix[1] * x + ViewMatrix[5] * y + ViewMatrix[9] * z + ViewMatrix[13];
-
-    const ImGuiIO &io = ImGui::GetIO();
-    sx = (io.DisplaySize.x * 0.5f) * (1.0f + cx / w);
-    sy = (io.DisplaySize.y * 0.5f) * (1.0f - cy / w);
-    return true;
-}
-
-float CalculateDistance(const float x1, const float y1, const float z1, const float x2, const float y2,
-                        const float z2) {
-    const float dx = x2 - x1;
-    const float dy = y2 - y1;
-    const float dz = z2 - z1;
-    return sqrtf(dx * dx + dy * dy + dz * dz);
-}
-
-bool GetHeadForPlayer(const PlayerInfo &player, BoneInfo &outHead) {
-    float minDist = 2.0f;
-    bool found = false;
-    for (const auto &bone: player.bones) {
-        if (bone.boneName != "Bip01_Head") continue;
-        float d = CalculateDistance(player.X, player.Y, player.Z, bone.x, bone.y, bone.z);
-        if (d < minDist) {
-            minDist = d;
-            outHead = bone;
-            found = true;
-        }
-    }
-    return found;
-}
+// =====================================================================
+// ⚠️ 以下函数已移至 SynthUtils，此处删除
+//   - ViewMatrix[16]           → SynthUtils.cpp
+//   - GetViewMatrix()          → SynthUtils.cpp
+//   - WorldToScreenPoint()     → SynthUtils::WorldToScreen()
+//   - CalculateDistance()      → SynthUtils.cpp
+//   - GetHeadForPlayer()       → SynthUtils::GetPlayerHeadBone()
+// =====================================================================
 
 inline ImU32 GetHealthGradientColor(const float p) {
     int r = static_cast<int>(255.0f * (1.0f - p));
@@ -78,86 +32,80 @@ inline ImU32 GetHealthGradientColor(const float p) {
     return IM_COL32(r, g, 0, 255);
 }
 
-void DrawPlayerSkeleton(const std::vector<BoneInfo> &bones, const float hp, const float distance) {
+void DrawPlayerSkeleton(const std::vector<BoneInfo>& bones, const float hp, const float distance) {
     if (hp <= 34.0f || bones.empty()) return;
 
-    ImDrawList *dl = ImGui::GetBackgroundDrawList();
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
     int alpha = (distance > 50.f) ? 100 : (distance > 30.f) ? 160 : 210;
 
     ImU32 boneColor = IM_COL32(g_BoneColor[0], g_BoneColor[1], g_BoneColor[2], alpha);
     ImU32 jointColor = IM_COL32(g_JointColor[0], g_JointColor[1], g_JointColor[2], alpha);
 
-    auto findBone = [&](const char *n) -> const BoneInfo * {
-        for (auto &b: bones) if (b.boneName == n) return &b;
+    auto findBone = [&](const char* n) -> const BoneInfo* {
+        for (auto& b : bones) if (b.boneName == n) return &b;
         return nullptr;
     };
 
-    const BoneInfo *head = findBone("Bip01_Head");
-    const BoneInfo *spine = findBone("Bip01_Spine");
-    const BoneInfo *pelvis = findBone("Bip01_Pelvis");
-    const BoneInfo *lUA = findBone("Bip01_L_UpperArm");
-    const BoneInfo *rUA = findBone("Bip01_R_UpperArm");
-    const BoneInfo *lFA = findBone("Bip01_L_Forearm");
-    const BoneInfo *rFA = findBone("Bip01_R_Forearm");
-    const BoneInfo *lT = findBone("Bip01_L_Thigh");
-    const BoneInfo *rT = findBone("Bip01_R_Thigh");
-    const BoneInfo *lC = findBone("Bip01_L_Calf");
-    const BoneInfo *rC = findBone("Bip01_R_Calf");
+    const BoneInfo* head   = findBone("Bip01_Head");
+    const BoneInfo* spine  = findBone("Bip01_Spine");
+    const BoneInfo* pelvis = findBone("Bip01_Pelvis");
+    const BoneInfo* lUA    = findBone("Bip01_L_UpperArm");
+    const BoneInfo* rUA    = findBone("Bip01_R_UpperArm");
+    const BoneInfo* lFA    = findBone("Bip01_L_Forearm");
+    const BoneInfo* rFA    = findBone("Bip01_R_Forearm");
+    const BoneInfo* lT     = findBone("Bip01_L_Thigh");
+    const BoneInfo* rT     = findBone("Bip01_R_Thigh");
+    const BoneInfo* lC     = findBone("Bip01_L_Calf");
+    const BoneInfo* rC     = findBone("Bip01_R_Calf");
 
-    auto line = [&](const BoneInfo *a, const BoneInfo *b, ImU32 c, const ImGuiIO &io) {
+    auto line = [&](const BoneInfo* a, const BoneInfo* b, ImU32 c, const ImGuiIO& io) {
         if (!a || !b) return;
-
         bool aOn = a->isOnScreen;
         bool bOn = b->isOnScreen;
         if (!aOn && !bOn) return;
-
         float ax = aOn ? a->screenX : io.DisplaySize.x * 0.5f;
         float ay = aOn ? a->screenY : 0.0f;
         float bx = bOn ? b->screenX : io.DisplaySize.x * 0.5f;
         float by = bOn ? b->screenY : 0.0f;
-
         dl->AddLine(ImVec2(ax, ay), ImVec2(bx, by), c, 1.5f);
     };
-    ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
 
     line(head, spine, boneColor, io);
     line(spine, pelvis, boneColor, io);
-
     line(spine, lUA, boneColor, io);
     line(lUA, lFA, boneColor, io);
-
     line(spine, rUA, boneColor, io);
     line(rUA, rFA, boneColor, io);
-
     line(pelvis, lT, boneColor, io);
     line(lT, lC, boneColor, io);
-
     line(pelvis, rT, boneColor, io);
     line(rT, rC, boneColor, io);
 
-    for (auto &b: bones) {
+    for (auto& b : bones) {
         if (!b.isOnScreen) continue;
         dl->AddCircleFilled(ImVec2(b.screenX, b.screenY), 2.5f, jointColor);
     }
 }
 
-void DrawPlayerBox(const PlayerInfo &player, const float hp, const uint32_t team, const int localTeam, float distance) {
+void DrawPlayerBox(const PlayerInfo& player, const float hp, const uint32_t team,
+                   const int localTeam, float distance) {
     if (hp <= 34.0f) return;
 
     BoneInfo head;
-    if (!GetHeadForPlayer(player, head)) return;
+    if (!GetPlayerHeadBone(player, head)) return;  // ✅ SynthUtils
 
-    ImDrawList *dl = ImGui::GetBackgroundDrawList();
-    ImGuiIO &io = ImGui::GetIO();
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+    ImGuiIO& io = ImGui::GetIO();
 
     float hy, fx, fy;
-    if (float hx; !WorldToScreenPoint(head.x, head.y, head.z, hx, hy)) return;
-    if (!WorldToScreenPoint(player.X, player.Y, player.Z, fx, fy)) return;
+    if (!WorldToScreen(head.x, head.y, head.z, fx, hy)) return;  // ✅ SynthUtils
+    if (!WorldToScreen(player.X, player.Y, player.Z, fx, fy)) return;
 
     const float height = fabs(hy - fy);
-    const float width = height * 0.5f;
-    const float x = fx - width * 0.5f;
-    float y = fy - height;
+    const float width  = height * 0.5f;
+    const float x      = fx - width * 0.5f;
+    float y            = fy - height;
 
     constexpr float barW = 4.0f;
     const float barH = height;
@@ -165,19 +113,17 @@ void DrawPlayerBox(const PlayerInfo &player, const float hp, const uint32_t team
 
     dl->AddRectFilled(ImVec2(barX, y), ImVec2(barX + barW, y + barH), IM_COL32(0, 0, 0, 180));
 
-    float hpRatio = std::clamp(hp / 100.0f, 0.0f, 1.0f);
+    const float hpRatio = std::clamp(hp / 100.0f, 0.0f, 1.0f);
     dl->AddRectFilled(
         ImVec2(barX, y + barH * (1.0f - hpRatio)),
         ImVec2(barX + barW, y + barH),
-        GetHealthGradientColor(hpRatio)
-    );
+        GetHealthGradientColor(hpRatio));
 
     const ImU32 boxColor = (team != localTeam)
-                         ? IM_COL32(g_EnemyBoxColor[0], g_EnemyBoxColor[1], g_EnemyBoxColor[2], 255)
-                         : IM_COL32(g_FriendBoxColor[0], g_FriendBoxColor[1], g_FriendBoxColor[2], 255);
+        ? IM_COL32(g_EnemyBoxColor[0], g_EnemyBoxColor[1], g_EnemyBoxColor[2], 255)
+        : IM_COL32(g_FriendBoxColor[0], g_FriendBoxColor[1], g_FriendBoxColor[2], 255);
 
     dl->AddRect(ImVec2(x, y), ImVec2(x + width, y + height), boxColor, 0, 0, 2.0f);
-
     dl->AddLine(ImVec2(io.DisplaySize.x * 0.5f, 0), ImVec2(fx, fy - height), boxColor, 1.2f);
 
     char txt[16];
@@ -191,7 +137,7 @@ void ESP::Render() {
 
     int localTeam = 0;
     if (const uintptr_t a = Memory::ResolveAddress(TEAM_FRIEND_EXPR))
-        localTeam = *reinterpret_cast<int *>(a);
+        localTeam = *reinterpret_cast<int*>(a);
 
     auto players = GetPlayers();
     if (players.empty()) return;
@@ -203,12 +149,12 @@ void ESP::Render() {
     std::vector<BoneInfo> allBones;
     CollectAllBones(allBones);
 
-    for (auto &b: allBones)
-        b.isOnScreen = WorldToScreenPoint(b.x, b.y, b.z, b.screenX, b.screenY);
+    for (auto& b : allBones)
+        b.isOnScreen = WorldToScreen(b.x, b.y, b.z, b.screenX, b.screenY);
 
     DistributeBonesToPlayers(players, allBones);
 
-    for (auto &p: players) {
+    for (auto& p : players) {
         if (!p.isValid) continue;
         if (p.HP <= 34.0f) continue;
 
@@ -218,21 +164,19 @@ void ESP::Render() {
 
         p.distance = CalculateDistance(
             LocalPlayerPosition[0], LocalPlayerPosition[1], LocalPlayerPosition[2],
-            p.X, p.Y, p.Z
-        );
+            p.X, p.Y, p.Z);
 
         DrawPlayerSkeleton(p.bones, p.HP, p.distance);
         DrawPlayerBox(p, p.HP, p.Team, localTeam, p.distance);
     }
 
     if (isAimbot) {
-        ImDrawList *dl = ImGui::GetBackgroundDrawList();
-        const ImGuiIO &io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetBackgroundDrawList();
+        const ImGuiIO& io = ImGui::GetIO();
         dl->AddCircle(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             Aimbot::g_aimFov,
             IM_COL32(g_FovCircleColor[0], g_FovCircleColor[1], g_FovCircleColor[2], 100),
-            64, 2.0f
-        );
+            64, 2.0f);
     }
 }

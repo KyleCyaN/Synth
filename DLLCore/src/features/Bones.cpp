@@ -5,6 +5,7 @@
 #include <cmath>
 #include <features/ESP.h>
 #include "imgui.h"
+#include "utils/SynthUtils.h"
 
 extern float ViewMatrix[16];
 
@@ -67,7 +68,7 @@ void CollectAllBones(std::vector<BoneInfo> &outAllBones)
 			if (std::isnan(bone.x) || std::isinf(bone.x) || std::isnan(bone.y) || std::isinf(bone.y) ||
 			    std::isnan(bone.z) || std::isinf(bone.z)) continue;
 			if (fabsf(bone.x) > 50000.0f || fabsf(bone.y) > 50000.0f || fabsf(bone.z) > 50000.0f) continue;
-			bone.isOnScreen = WorldToScreenPoint(bone.x, bone.y, bone.z, bone.screenX, bone.screenY);
+			bone.isOnScreen = WorldToScreen(bone.x, bone.y, bone.z, bone.screenX, bone.screenY);
 			outAllBones.push_back(bone);
 		}
 	}

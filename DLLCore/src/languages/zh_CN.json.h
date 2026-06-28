@@ -14,6 +14,8 @@ static constexpr char zh_CN_JSON[] =
 "  \"general.bot_lobby\": \"人机房间\",\n"
 "\n"
 "  \"battle.aimbot\": \"自瞄\",\n"
+"  \"battle.aimbot.silent\": \"静默自瞄\",\n"
+"  \"battle.aimbot.silent.fov\": \"静默自瞄范围\",\n"
 "  \"battle.aim_range\": \"自瞄范围\",\n"
 "  \"battle.aim_factor\": \"自瞄平滑度\",\n"
 "  \"battle.radar\": \"雷达\",\n"

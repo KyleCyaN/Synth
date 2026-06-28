@@ -14,6 +14,8 @@ static constexpr char en_US_JSON[] =
 "  \"general.bot_lobby\": \"Bot Lobby\",\n"
 "\n"
 "  \"battle.aimbot\": \"Aimbot\",\n"
+"  \"battle.aimbot.silent\": \"Silent Aimbot\",\n"
+"  \"battle.aimbot.silent.fov\": \"Silent Aimbot FOV\",\n"
 "  \"battle.aim_range\": \"Aim Range\",\n"
 "  \"battle.aim_factor\": \"Aim Factor\",\n"
 "  \"battle.radar\": \"Radar\",\n"
