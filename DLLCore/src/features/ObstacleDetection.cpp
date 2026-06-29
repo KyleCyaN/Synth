@@ -131,9 +131,7 @@ bool ObstacleDetection::HasLineOfSight(const float startPos[3],const float endPo
     return clear;
 }
 
-bool ObstacleDetection::IsTargetVisible(
-    const float localPos[3],
-    const float targetHeadPos[3])
+bool ObstacleDetection::IsTargetVisible(const float localPos[3],const float targetHeadPos[3])
 {
     return HasLineOfSight(localPos, targetHeadPos);
 }
