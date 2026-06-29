@@ -11,7 +11,7 @@
 
   "battle.aimbot": "Аимбот",
   "battle.aim_range": "Дальность аима",
-  "battle.aim_factor": "Фактор сглаживания",
+  "battle.aim_smooth": "Фактор сглаживания",
   "battle.radar": "Радар",
   "battle.radar.tips": "Отображает всех врагов на радаре.",
   "battle.infinite_ammo": "Бесконечные патроны",

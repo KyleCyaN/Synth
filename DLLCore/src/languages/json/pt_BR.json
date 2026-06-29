@@ -11,7 +11,7 @@
 
   "battle.aimbot": "Aimbot",
   "battle.aim_range": "Alcance do Aimbot",
-  "battle.aim_factor": "Fator de Suavização",
+  "battle.aim_smooth": "Fator de Suavização",
   "battle.radar": "Radar",
   "battle.radar.tips": "Exibe todos os inimigos no radar.",
   "battle.infinite_ammo": "Munição Infinita",

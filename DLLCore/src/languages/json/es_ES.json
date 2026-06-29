@@ -10,8 +10,8 @@
   "general.bot_lobby": "Sala de Bots",
 
   "battle.aimbot": "Aimbot",
-  "battle.aim_range": "Rango de Aimbot",
-  "battle.aim_factor": "Factor de Suavizado",
+  "battle.aimbot.range": "Rango de Aimbot",
+  "battle.aimbot.smoothness": "Factor de Suavizado",
   "battle.radar": "Radar",
   "battle.radar.tips": "Muestra a todos los enemigos en el radar.",
   "battle.infinite_ammo": "Munición Infinita",

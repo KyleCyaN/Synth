@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "utils/SynthUtils.h"
+#include "utils/utils.h"
 
 static constexpr uintptr_t HOOK_OFFSET = 0x2BA214;
 static constexpr size_t HOOK_SIZE = 9;
@@ -89,7 +89,7 @@ void SilentAimbot::Install() {
         }
     }
 
-    g_Shellcode = AllocateNear(g_HookAddr);
+    g_Shellcode = Memory::AllocateNear(g_HookAddr);
     if (!g_Shellcode) { return; }
 
     auto code = static_cast<BYTE *>(g_Shellcode);

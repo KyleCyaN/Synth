@@ -1,6 +1,5 @@
 #include "Language.h"
 #include "json.hpp"
-#include "languages/zh_CN.json.h"
 #include "languages/en_US.json.h"
 #include "languages/ja_JP.json.h"
 #include "languages/ru_RU.json.h"
@@ -9,6 +8,9 @@
 #include "languages/fr_FR.json.h"
 #include "languages/ko_KR.json.h"
 #include "languages/ar_SA.json.h"
+#include "languages/zh_CN_SP.json.h"
+#include "languages/zh_CN_TR.json.h"
+
 Language& Language::Instance()
 {
     static Language inst;
@@ -18,7 +20,8 @@ Language& Language::Instance()
 static LangCode LangCodeFromString(const std::string& code)
 {
     static const std::unordered_map<std::string, LangCode> map = {
-        {"zh_CN", LangCode::zh_CN},
+        {"zh_CN", LangCode::zh_CN_SP},
+        {"zh_CN", LangCode::zh_CN_TR},
         {"en_US", LangCode::en_US},
         {"ja_JP", LangCode::ja_JP},
         {"ru_RU", LangCode::ru_RU},
@@ -43,8 +46,12 @@ bool Language::Load(const std::string& langCode)
 
     switch (LangCodeFromString(langCode))
     {
-        case LangCode::zh_CN:
-            jsonData = std::string_view(zh_CN_JSON, sizeof(zh_CN_JSON) - 1);
+        case LangCode::zh_CN_SP:
+            jsonData = std::string_view(zh_CN_SP_JSON, sizeof(zh_CN_SP_JSON) - 1);
+            ok = true;
+            break;
+        case LangCode::zh_CN_TR:
+            jsonData = std::string_view(zh_CN_TR_JSON, sizeof(zh_CN_TR_JSON) - 1);
             ok = true;
             break;
         case LangCode::en_US:

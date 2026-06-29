@@ -47,4 +47,6 @@ namespace Memory
     uintptr_t ResolvePointerChain(uintptr_t base, const std::vector<uintptr_t>& offsets);
 
     uintptr_t FindPattern(const char* module, const BYTE* pattern, const char* mask);
+
+    void* AllocateNear(uintptr_t target);
 }

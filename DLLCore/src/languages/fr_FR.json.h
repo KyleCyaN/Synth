@@ -15,7 +15,7 @@ static constexpr char fr_FR_JSON[] =
 "\n"
 "  \"battle.aimbot\": \"Aimbot\",\n"
 "  \"battle.aim_range\": \"Portée de l'Aimbot\",\n"
-"  \"battle.aim_factor\": \"Facteur de lissage\",\n"
+"  \"battle.aim_smooth\": \"Facteur de lissage\",\n"
 "  \"battle.radar\": \"Radar\",\n"
 "  \"battle.radar.tips\": \"Affiche tous les ennemis sur le radar.\",\n"
 "  \"battle.infinite_ammo\": \"Munitions Infinies\",\n"

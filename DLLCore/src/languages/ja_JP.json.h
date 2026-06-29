@@ -15,7 +15,7 @@ static constexpr char ja_JP_JSON[] =
 "\n"
 "  \"battle.aimbot\": \"エイムボット\",\n"
 "  \"battle.aim_range\": \"エイム範囲\",\n"
-"  \"battle.aim_factor\": \"エイム係数\",\n"
+"  \"battle.aim_smooth\": \"エイム係数\",\n"
 "  \"battle.radar\": \"レーダー\",\n"
 "  \"battle.radar.tips\": \"レーダーに全敵を表示します。\",\n"
 "  \"battle.infinite_ammo\": \"無限弾薬\",\n"

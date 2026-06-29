@@ -7,8 +7,7 @@
 #include <cmath>
 #include "Players.h"
 #include "Bones.h"
-#include "Aimbot.h"
-#include "../utils/SynthUtils.h"
+#include "../utils/utils.h"
 #include "features.h"
 #include "imgui.h"
 #include "memory.h"
@@ -159,8 +158,8 @@ void ESP::Render() {
         if (p.HP <= 34.0f) continue;
 
         const bool enemy = p.Team != localTeam;
-        if (enemy && !g_showEnemy) continue;
-        if (!enemy && !g_showFriend) continue;
+        if (enemy && ! isShowEnemy) continue;
+        if (!enemy && !isShowFriend) continue;
 
         p.distance = CalculateDistance(
             LocalPlayerPosition[0], LocalPlayerPosition[1], LocalPlayerPosition[2],
@@ -168,15 +167,5 @@ void ESP::Render() {
 
         DrawPlayerSkeleton(p.bones, p.HP, p.distance);
         DrawPlayerBox(p, p.HP, p.Team, localTeam, p.distance);
-    }
-
-    if (isAimbot) {
-        ImDrawList* dl = ImGui::GetBackgroundDrawList();
-        const ImGuiIO& io = ImGui::GetIO();
-        dl->AddCircle(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
-            Aimbot::g_aimFov,
-            IM_COL32(g_FovCircleColor[0], g_FovCircleColor[1], g_FovCircleColor[2], 100),
-            64, 2.0f);
     }
 }

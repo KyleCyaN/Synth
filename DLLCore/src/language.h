@@ -8,7 +8,8 @@ enum class LangCode : uint8_t
 {
     Invalid = 0,
     en_US,
-    zh_CN,
+    zh_CN_SP,
+    zh_CN_TR,
     ja_JP,
     ru_RU,
     fr_FR,

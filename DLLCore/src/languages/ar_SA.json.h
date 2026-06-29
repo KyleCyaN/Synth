@@ -15,7 +15,7 @@ static constexpr char ar_SA_JSON[] =
 "\n"
 "  \"battle.aimbot\": \"ايم بوت\",\n"
 "  \"battle.aim_range\": \"مدى التصويب\",\n"
-"  \"battle.aim_factor\": \"عامل النعومة\",\n"
+"  \"battle.aim_smooth\": \"عامل النعومة\",\n"
 "  \"battle.radar\": \"رادار\",\n"
 "  \"battle.radar.tips\": \"عرض جميع الأعداء على الرادار.\",\n"
 "  \"battle.infinite_ammo\": \"ذخيرة غير محدودة\",\n"

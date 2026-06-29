@@ -15,7 +15,7 @@ static constexpr char ru_RU_JSON[] =
 "\n"
 "  \"battle.aimbot\": \"Аимбот\",\n"
 "  \"battle.aim_range\": \"Дальность аима\",\n"
-"  \"battle.aim_factor\": \"Фактор сглаживания\",\n"
+"  \"battle.aim_smooth\": \"Фактор сглаживания\",\n"
 "  \"battle.radar\": \"Радар\",\n"
 "  \"battle.radar.tips\": \"Отображает всех врагов на радаре.\",\n"
 "  \"battle.infinite_ammo\": \"Бесконечные патроны\",\n"
