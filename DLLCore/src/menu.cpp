@@ -160,6 +160,7 @@ void UIMenu::Render() {
             ImGui::SameLine();
             ImGui::SliderFloat("##move_speed", &MoveSpeed::speed, 1.0f, 10.0f, "%.1f", ImGuiSliderFlags_None);
             ImGui::Checkbox(LOC("battle.fast_respawn"), &isFastRespawn);
+            ImGui::Checkbox(LOC("battle.force_respawn"), &isForceRespawn);
             ImGui::Checkbox(LOC("battle.ghost"), &isGhost);
             ImGui::SameLine();
             ImGui::Checkbox(LOC("battle.teleport_to_enemies_head"), &isFury);
@@ -318,6 +319,7 @@ void UIMenu::Render() {
     }
 
     ImGui::End();
+
     Features::FeaturesByMemory();
     Features::FeaturesByAssembly();
 }

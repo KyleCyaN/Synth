@@ -11,7 +11,7 @@ std::vector<PlayerInfo> GetPlayers() {
 	int playerOffset = 0x0;
 
 	for (int i = 0; i < 100; i++) {
-		int step = 0x8;
+		constexpr int step = 0x8;
 		uintptr_t playerCompPtr = 0;
 		if (!Memory::SafeReadPtr(managerPtr + i * 0x8, playerCompPtr)) continue;
 

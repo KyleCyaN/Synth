@@ -7,8 +7,6 @@
 #include "imgui.h"
 #include "utils/utils.h"
 
-extern float ViewMatrix[16];
-
 void CollectAllBones(std::vector<BoneInfo> &outAllBones)
 {
 	outAllBones.clear();
@@ -128,7 +126,7 @@ void DistributeBonesToPlayers(std::vector<PlayerInfo> &players, const std::vecto
 		}
 		if (bestGroup >= 0)
 		{
-			groups[bestGroup].playerIndex = (int) (&player - &players[0]);
+			groups[bestGroup].playerIndex = static_cast<int>(&player - &players[0]);
 			player.bones = groups[bestGroup].bones;
 		}
 	}

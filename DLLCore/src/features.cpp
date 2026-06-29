@@ -10,6 +10,7 @@
 #include "features/BattlePass.h"
 #include "features/BotLobby.h"
 #include "features/FastRespawn.h"
+#include "features/ForceRespawn.h"
 #include "features/FullCores.h"
 #include "features/TeleportToHead.h"
 #include "features/Ghost.h"
@@ -77,6 +78,7 @@ bool isAccuracy = false;
 bool isMoveSpeed = false;
 bool isRecoilless = false;
 bool isFastRespawn = false;
+bool isForceRespawn = false;
 
 template<auto On, auto Off>
 void Toggle(bool& cur, bool& last) {
