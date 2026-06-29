@@ -11,7 +11,7 @@
 
   "battle.aimbot": "Aimbot",
   "battle.aim_range": "Portée de l'Aimbot",
-  "battle.aim_factor": "Facteur de lissage",
+  "battle.aim_smooth": "Facteur de lissage",
   "battle.radar": "Radar",
   "battle.radar.tips": "Affiche tous les ennemis sur le radar.",
   "battle.infinite_ammo": "Munitions Infinies",

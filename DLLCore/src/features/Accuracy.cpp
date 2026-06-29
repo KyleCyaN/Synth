@@ -17,25 +17,6 @@ static LPVOID g_shellcode2 = nullptr;
 static LPVOID g_shellcode3 = nullptr;
 static bool g_installed = false;
 
-static LPVOID AllocateNear(uintptr_t target)
-{
-    for (int i = 0; i < 524288; ++i)
-    {
-        int dir = (i % 2 == 0) ? 1 : -1;
-        uintptr_t addr = target + dir * (i / 2) * 0x1000;
-        addr &= ~((uintptr_t)0xFFF);
-        LPVOID p = VirtualAlloc((LPVOID)addr, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        if (p)
-        {
-            int64_t rel = (int64_t)((uintptr_t)p - (target + 5));
-            if (rel >= INT32_MIN && rel <= INT32_MAX)
-                return p;
-            VirtualFree(p, 0, MEM_RELEASE);
-        }
-    }
-    return nullptr;
-}
-
 static bool InstallSingleHook(uintptr_t& hookAddr, LPVOID& shellcode, BYTE* origBytes,
                               BYTE* pattern, const char* mask, size_t patLen, const char* name)
 {
@@ -45,7 +26,7 @@ static bool InstallSingleHook(uintptr_t& hookAddr, LPVOID& shellcode, BYTE* orig
         return false;
     }
 
-    shellcode = AllocateNear(hookAddr);
+    shellcode = Memory::AllocateNear(hookAddr);
     if (!shellcode)
     {
         return false;

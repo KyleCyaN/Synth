@@ -58,7 +58,8 @@ file(MAKE_DIRECTORY ${LANG_GEN_DIR})
 
 set(LANGUAGES
         en_US
-        zh_CN
+        zh_CN_SP
+        zh_CN_TR
         ja_JP
         ru_RU
         fr_FR
@@ -138,8 +139,8 @@ set(INJECTOR_SOURCES
 set(INJECTOR_HEADERS
         Injector/src/InjectorGUI.h
         Injector/src/core/Inject.h
-        DLLCore/src/utils/SynthUtils.cpp
-        DLLCore/src/utils/SynthUtils.h
+        DLLCore/src/utils/utils.cpp
+        DLLCore/src/utils/utils.h
 )
 
 add_executable(Injector

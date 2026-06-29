@@ -413,4 +413,23 @@ namespace Memory
 
 		return 0;
 	}
+
+	void* AllocateNear(uintptr_t target)
+	{
+		for (int i = 0; i < 524288; ++i) {
+			const int dir = (i % 2 == 0) ? 1 : -1;
+			uintptr_t addr = target + dir * (i / 2) * 0x1000;
+			addr &= ~static_cast<uintptr_t>(0xFFF);
+			if (void* p = VirtualAlloc(reinterpret_cast<void*>(addr), 0x1000,
+										MEM_COMMIT | MEM_RESERVE,
+										PAGE_EXECUTE_READWRITE)) {
+				const auto rel = static_cast<int64_t>(
+					reinterpret_cast<uintptr_t>(p) - (target + 5));
+				if (rel >= INT32_MIN && rel <= INT32_MAX)
+					return p;
+				VirtualFree(p, 0, MEM_RELEASE);
+										}
+		}
+		return nullptr;
+	}
 }

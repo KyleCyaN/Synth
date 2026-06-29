@@ -11,7 +11,7 @@
 
   "battle.aimbot": "ايم بوت",
   "battle.aim_range": "مدى التصويب",
-  "battle.aim_factor": "عامل النعومة",
+  "battle.aim_smooth": "عامل النعومة",
   "battle.radar": "رادار",
   "battle.radar.tips": "عرض جميع الأعداء على الرادار.",
   "battle.infinite_ammo": "ذخيرة غير محدودة",

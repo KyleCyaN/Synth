@@ -1,5 +1,5 @@
 {
-  "menu.title": "Synth by KyleCyaN",
+  "menu.title": "背背背背背起了行囊",
 
   "tab.general": "通用",
   "tab.battle": "战斗",
@@ -12,8 +12,12 @@
   "battle.aimbot": "自瞄",
   "battle.aimbot.silent": "静默自瞄",
   "battle.aimbot.silent.fov": "静默自瞄范围",
-  "battle.aim_range": "自瞄范围",
-  "battle.aim_factor": "自瞄平滑度",
+  "battle.aimbot.range": "自瞄范围",
+  "battle.aimbot.range.min": "最小",
+  "battle.aimbot.range.max": "最大",
+  "battle.aimbot.smoothness": "自瞄平滑度",
+  "battle.aimbot.smoothness.hard": "硬锁",
+  "battle.aimbot.smoothness.smooth": "平滑",
   "battle.radar": "雷达",
   "battle.radar.tips": "在小地图上显示所有敌人。",
   "battle.infinite_ammo": "无限弹药",

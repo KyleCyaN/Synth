@@ -67,8 +67,8 @@ bool isESP = false;
 bool isBotRoom = false;
 bool isGhost = false;
 bool isFury = false;
-bool g_showEnemy = true;
-bool g_showFriend = false;
+bool isShowEnemy = true;
+bool isShowFriend = false;
 bool isBattlePass = false;
 bool isVIP = false;
 bool isAssassination = false;
@@ -98,8 +98,10 @@ namespace Features {
         TeleportToHead::isEnabled = isFury;
         Ghost::isEnabled = isGhost;
 
-        if (isAimbot)
+        if (isAimbot) {
             Aimbot::Run();
+            Aimbot::DrawFovCircle();
+        }
         else
             Aimbot::UninstallPitchHook();
 

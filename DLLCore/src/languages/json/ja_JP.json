@@ -11,7 +11,7 @@
 
   "battle.aimbot": "エイムボット",
   "battle.aim_range": "エイム範囲",
-  "battle.aim_factor": "エイム係数",
+  "battle.aim_smooth": "エイム係数",
   "battle.radar": "レーダー",
   "battle.radar.tips": "レーダーに全敵を表示します。",
   "battle.infinite_ammo": "無限弾薬",

@@ -17,7 +17,8 @@ int g_FriendBoxColor[3] = {0, 255, 0};
 int g_FovCircleColor[3] = {255, 255, 255};
 
 const char* languages[] = {
-    "zh_CN", "简体中文",
+    "zh_CN_SP", "简体中文",
+    "zh_CN_TR", "繁體中文",
     "en_US", "English",
     "ru_RU", "Русский",
     "ja_JP", "日本語",
@@ -88,12 +89,12 @@ void UIMenu::Initialize()
 
     ImFontConfig arabicConfig;
     arabicConfig.MergeMode = true;
-    arabicConfig.SizePixels = 26.0f;
+    arabicConfig.SizePixels = 28.0f;
 
     io.Fonts->AddFontFromMemoryTTF(
         NotoSansArabic_Regular_ttf,
         NotoSansArabic_Regular_ttf_len,
-        26.0f,
+        28.0f,
         &arabicConfig,
         arabicRanges.Data
     );
@@ -129,8 +130,18 @@ void UIMenu::Render() {
         if (ImGui::BeginTabItem(LOC("tab.battle"))) {
             ImGui::Separator();
             ImGui::Checkbox(LOC("battle.aimbot"), &isAimbot);
-            ImGui::SliderFloat(LOC("battle.aim_range"), &Aimbot::g_aimFov, 100.0f, 400.0f, "%.0f");
-            ImGui::SliderFloat(LOC("battle.aim_factor"), &Aimbot::smooth, 0.05f, 0.35f, "%.2f");
+            ImGui::Text(LOC("battle.aimbot.range"));
+            ImGui::Text(LOC("battle.aimbot.range.min"));
+            ImGui::SameLine();
+            ImGui::SliderFloat("##aimbot_fov", &Aimbot::g_aimFov, 2.0f, 45.0f, "%.0f", ImGuiSliderFlags_None);
+            ImGui::SameLine();
+            ImGui::Text(LOC("battle.aimbot.range.max"));
+            ImGui::Text(LOC("battle.aimbot.smoothness"));
+            ImGui::Text(LOC("battle.aimbot.smoothness.hard"));
+            ImGui::SameLine();
+            ImGui::SliderFloat("##aimbot_smoothness", &Aimbot::smooth, 0.05f, 0.35f, "%.2f", ImGuiSliderFlags_None);
+            ImGui::SameLine();
+            ImGui::Text(LOC("battle.aimbot.smoothness.smooth"));
             ImGui::Checkbox(LOC("battle.aimbot.silent"), &isSilentAimbot);
             ImGui::SliderFloat(LOC("battle.aimbot.silent.fov"), &SilentAimbot::g_silentFov, 50.0f, 400.0f, "%.0f");
             ImGui::Checkbox(LOC("battle.radar"), &isRadar);
@@ -145,7 +156,9 @@ void UIMenu::Render() {
             ImGui::Checkbox(LOC("battle.rapid_fire"), &isRapidFire);
             ImGui::Checkbox(LOC("battle.move_speed"), &isMoveSpeed);
             ImGui::SameLine();
-            ImGui::SliderFloat(LOC("battle.move_speed.desc"), &MoveSpeed::speed, 1.0f, 10.0f, "%.1f");
+            ImGui::Text(LOC("battle.move_speed.desc"));
+            ImGui::SameLine();
+            ImGui::SliderFloat("##move_speed", &MoveSpeed::speed, 1.0f, 10.0f, "%.1f", ImGuiSliderFlags_None);
             ImGui::Checkbox(LOC("battle.fast_respawn"), &isFastRespawn);
             ImGui::Checkbox(LOC("battle.ghost"), &isGhost);
             ImGui::SameLine();
@@ -160,9 +173,9 @@ void UIMenu::Render() {
 
         if (ImGui::BeginTabItem(LOC("tab.esp"))) {
             ImGui::Checkbox(LOC("esp.enable"), &isESP);
-            ImGui::Checkbox(LOC("esp.enemy"), &g_showEnemy);
+            ImGui::Checkbox(LOC("esp.enemy"), &isShowEnemy);
             ImGui::SameLine();
-            ImGui::Checkbox(LOC("esp.friend"), &g_showFriend);
+            ImGui::Checkbox(LOC("esp.friend"), &isShowFriend);
             ImGui::Separator();
             ImGui::Text("%s", LOC("esp.box_color"));
             ImGui::Separator();

@@ -15,7 +15,7 @@ static constexpr char ko_KR_JSON[] =
 "\n"
 "  \"battle.aimbot\": \"에임봇\",\n"
 "  \"battle.aim_range\": \"에임 범위\",\n"
-"  \"battle.aim_factor\": \"에임 부드러움\",\n"
+"  \"battle.aim_smooth\": \"에임 부드러움\",\n"
 "  \"battle.radar\": \"레더\",\n"
 "  \"battle.radar.tips\": \"레더에 모든 적을 표시합니다.\",\n"
 "  \"battle.infinite_ammo\": \"무한 탄약\",\n"

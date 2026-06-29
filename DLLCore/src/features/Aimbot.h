@@ -6,6 +6,7 @@ namespace Aimbot
     extern float smooth;
     extern float g_aimFov;
     void Run();
+    void DrawFovCircle();
     bool InitGameFunctions();
     bool InstallPitchHook();
     void UninstallPitchHook();
