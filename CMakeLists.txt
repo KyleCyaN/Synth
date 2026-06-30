@@ -46,6 +46,8 @@ list(FILTER IMGUI_SOURCES EXCLUDE REGEX ".*freetype.*")
 add_library(SynthDLL SHARED
         ${DLL_SOURCES}
         ${IMGUI_SOURCES}
+        DLLCore/src/features/SilentAimbot.cpp
+        DLLCore/src/features/SilentAimbot.h
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

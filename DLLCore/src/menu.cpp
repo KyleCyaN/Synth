@@ -163,7 +163,7 @@ void UIMenu::Render() {
             ImGui::Checkbox(LOC("battle.force_respawn"), &isForceRespawn);
             ImGui::Checkbox(LOC("battle.ghost"), &isGhost);
             ImGui::SameLine();
-            ImGui::Checkbox(LOC("battle.teleport_to_enemies_head"), &isFury);
+            ImGui::Checkbox(LOC("battle.teleport_to_enemies_head"), &isTeleportToHead);
             ImGui::SameLine();
             ImGui::TextDisabled("%s", LOC("battle.teleport_to_enemies_head.desc"));
             if (ImGui::IsItemHovered()) {

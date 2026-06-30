@@ -66,7 +66,7 @@ bool isFullCores = false;
 bool isESP = false;
 bool isBotRoom = false;
 bool isGhost = false;
-bool isFury = false;
+bool isTeleportToHead = false;
 bool isShowEnemy = true;
 bool isShowFriend = false;
 bool isBattlePass = false;
@@ -96,7 +96,7 @@ namespace Features {
     void FeaturesByMemory() {
         Aimbot::isEnabled = isAimbot;
         SilentAimbot::isEnabled = isSilentAimbot;
-        TeleportToHead::isEnabled = isFury;
+        TeleportToHead::isEnabled = isTeleportToHead;
         Ghost::isEnabled = isGhost;
 
         if (isAimbot) {
@@ -143,7 +143,7 @@ namespace Features {
             }
         }
 
-        if (isFury && Ghost::isEnabled) {
+        if (isTeleportToHead && Ghost::isEnabled) {
             auto players = GetPlayers();
             TeleportToHead::Run(players);
         }

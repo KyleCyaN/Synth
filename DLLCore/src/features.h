@@ -64,7 +64,7 @@ extern bool isESP;
 extern bool isBotRoom;
 extern bool isFullCores;
 extern bool isGhost;
-extern bool isFury;
+extern bool isTeleportToHead;
 extern bool isShowEnemy;
 extern bool isShowFriend;
 extern bool isBattlePass;

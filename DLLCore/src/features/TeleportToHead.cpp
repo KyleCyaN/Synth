@@ -7,9 +7,9 @@
 #include "Bones.h"
 
 bool  TeleportToHead::isEnabled = false;
-float  TeleportToHead::g_furyTargetPos[3] = {0, 0, 0};
-bool  TeleportToHead::g_furyActive = false;
-int  TeleportToHead::g_furyTargetIndex = -1;
+float  TeleportToHead::g_teleportToHeadTargetPos[3] = {0, 0, 0};
+bool  TeleportToHead::g_teleportToHeadActive = false;
+int  TeleportToHead::g_teleportToHeadTargetIndex = -1;
 
 bool  TeleportToHead::InitFunctions() { return true; }
 
@@ -27,8 +27,8 @@ static int GetLocalTeam()
 
 void TeleportToHead::Run(std::vector<PlayerInfo>& players)
 {
-    g_furyActive = false;
-    g_furyTargetIndex = -1;
+    g_teleportToHeadActive = false;
+    g_teleportToHeadTargetIndex = -1;
 
     if (!isEnabled || !Ghost::isEnabled) return;
 
@@ -88,14 +88,14 @@ void TeleportToHead::Run(std::vector<PlayerInfo>& players)
     Memory::WriteFloat(pointer3 + 0x5C, bestHead.y - 0.3f);
     Memory::WriteFloat(pointer3 + 0x60, bestHead.z - 1.5f);
 
-    g_furyTargetPos[0] = bestHead.x;
-    g_furyTargetPos[1] = bestHead.y - 0.3f;
-    g_furyTargetPos[2] = bestHead.z - 1.5f;
-    g_furyActive = true;
+    g_teleportToHeadTargetPos[0] = bestHead.x;
+    g_teleportToHeadTargetPos[1] = bestHead.y - 0.3f;
+    g_teleportToHeadTargetPos[2] = bestHead.z - 1.5f;
+    g_teleportToHeadActive = true;
 }
 
 void  TeleportToHead::Install()
 {
 }
 
-void  TeleportToHead::Uninstall() { g_furyActive = false; }
+void  TeleportToHead::Uninstall() { g_teleportToHeadActive = false; }

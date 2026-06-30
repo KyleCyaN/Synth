@@ -9,7 +9,7 @@ namespace TeleportToHead {
 	void Install();
 	void Uninstall();
 
-	extern float g_furyTargetPos[3];
-	extern bool g_furyActive;
-	extern int g_furyTargetIndex;
+	extern float g_teleportToHeadTargetPos[3];
+	extern bool g_teleportToHeadActive;
+	extern int g_teleportToHeadTargetIndex;
 }
