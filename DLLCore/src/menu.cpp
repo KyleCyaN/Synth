@@ -139,7 +139,7 @@ void UIMenu::Render() {
             ImGui::Text(LOC("battle.aimbot.smoothness"));
             ImGui::Text(LOC("battle.aimbot.smoothness.hard"));
             ImGui::SameLine();
-            ImGui::SliderFloat("##aimbot_smoothness", &Aimbot::smooth, 0.05f, 0.35f, "%.2f", ImGuiSliderFlags_None);
+            ImGui::SliderFloat("##aimbot_smoothness", &Aimbot::smooth, 0.00f, 1.00f, "%.2f", ImGuiSliderFlags_None);
             ImGui::SameLine();
             ImGui::Text(LOC("battle.aimbot.smoothness.smooth"));
             ImGui::Checkbox(LOC("battle.aimbot.silent"), &isSilentAimbot);
@@ -314,7 +314,6 @@ void UIMenu::Render() {
 
             ImGui::EndTabItem();
         }
-
         ImGui::EndTabBar();
     }
 

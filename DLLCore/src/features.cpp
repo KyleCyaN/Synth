@@ -10,7 +10,6 @@
 #include "features/BattlePass.h"
 #include "features/BotLobby.h"
 #include "features/FastRespawn.h"
-#include "features/ForceRespawn.h"
 #include "features/FullCores.h"
 #include "features/TeleportToHead.h"
 #include "features/Ghost.h"
