@@ -18,12 +18,11 @@
 ## 🎯 Features
 
 ### 🎯 Aim & Combat
-- Full Accuracy  
+- 100% Accuracy  
 - Aim Assist  
 - Rapid Fire  
 - Recoilless  
 - Infinite Ammo
-- 5 Cores
 - Ghost mode
 - Teleport to enemies' head
 
