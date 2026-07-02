@@ -16,15 +16,6 @@
 std::vector<BoneInfo> g_headBones;
 float LocalPlayerPosition[3];
 
-// =====================================================================
-// ⚠️ 以下函数已移至 SynthUtils，此处删除
-//   - ViewMatrix[16]           → SynthUtils.cpp
-//   - GetViewMatrix()          → SynthUtils.cpp
-//   - WorldToScreenPoint()     → SynthUtils::WorldToScreen()
-//   - CalculateDistance()      → SynthUtils.cpp
-//   - GetHeadForPlayer()       → SynthUtils::GetPlayerHeadBone()
-// =====================================================================
-
 inline ImU32 GetHealthGradientColor(const float p) {
     int r = static_cast<int>(255.0f * (1.0f - p));
     int g = static_cast<int>(255.0f * p);
@@ -35,10 +26,10 @@ void DrawPlayerSkeleton(const std::vector<BoneInfo>& bones, const float hp, cons
     if (hp <= 34.0f || bones.empty()) return;
 
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
-    int alpha = (distance > 50.f) ? 100 : (distance > 30.f) ? 160 : 210;
+    const int alpha = (distance > 50.f) ? 100 : (distance > 30.f) ? 160 : 210;
 
-    ImU32 boneColor = IM_COL32(g_BoneColor[0], g_BoneColor[1], g_BoneColor[2], alpha);
-    ImU32 jointColor = IM_COL32(g_JointColor[0], g_JointColor[1], g_JointColor[2], alpha);
+    const ImU32 boneColor = IM_COL32(g_BoneColor[0], g_BoneColor[1], g_BoneColor[2], alpha);
+    const ImU32 jointColor = IM_COL32(g_JointColor[0], g_JointColor[1], g_JointColor[2], alpha);
 
     auto findBone = [&](const char* n) -> const BoneInfo* {
         for (auto& b : bones) if (b.boneName == n) return &b;
@@ -92,13 +83,13 @@ void DrawPlayerBox(const PlayerInfo& player, const float hp, const uint32_t team
     if (hp <= 34.0f) return;
 
     BoneInfo head;
-    if (!GetPlayerHeadBone(player, head)) return;  // ✅ SynthUtils
+    if (!GetPlayerHeadBone(player, head)) return;
 
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
     ImGuiIO& io = ImGui::GetIO();
 
     float hy, fx, fy;
-    if (!WorldToScreen(head.x, head.y, head.z, fx, hy)) return;  // ✅ SynthUtils
+    if (!WorldToScreen(head.x, head.y, head.z, fx, hy)) return;
     if (!WorldToScreen(player.X, player.Y, player.Z, fx, fy)) return;
 
     const float height = fabs(hy - fy);

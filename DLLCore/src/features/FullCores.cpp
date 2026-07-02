@@ -2,30 +2,13 @@
 #include <Windows.h>
 #include <cstdint>
 
+#include "memory.h"
+
 static bool g_Installed = false;
 static uintptr_t g_HookAddr = 0;
 static BYTE g_OrigBytes[6] = {0};
 static LPVOID g_Shellcode = nullptr;
 static uintptr_t g_ModuleBase = 0;
-
-static LPVOID AllocateNear(uintptr_t target)
-{
-    for (int i = 0; i < 524288; ++i)
-    {
-        int dir = (i % 2 == 0) ? 1 : -1;
-        uintptr_t addr = target + dir * (i / 2) * 0x1000;
-        addr &= ~((uintptr_t)0xFFF);
-        LPVOID p = VirtualAlloc((LPVOID)addr, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-        if (p)
-        {
-            int64_t rel = (int64_t)((uintptr_t)p - (target + 5));
-            if (rel >= INT32_MIN && rel <= INT32_MAX)
-                return p;
-            VirtualFree(p, 0, MEM_RELEASE);
-        }
-    }
-    return nullptr;
-}
 
 void FullCores::Install()
 {
@@ -45,7 +28,7 @@ void FullCores::Install()
         return;
     }
 
-    g_Shellcode = AllocateNear(g_HookAddr);
+    g_Shellcode = Memory::AllocateNear(g_HookAddr);
     if (!g_Shellcode)
     {
         return;

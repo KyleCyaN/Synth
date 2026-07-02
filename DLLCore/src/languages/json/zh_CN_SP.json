@@ -28,7 +28,6 @@
   "battle.move_speed": "快速移动",
   "battle.move_speed.desc": "移动速度",
   "battle.fast_respawn": "快速部署",
-  "battle.force_respawn": "强制部署",
   "battle.ghost": "幽灵模式",
   "battle.teleport_to_enemies_head": "瞬移至敌人头顶",
   "battle.teleport_to_enemies_head.desc": "需开启幽灵模式",

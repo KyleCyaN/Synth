@@ -32,7 +32,6 @@ static constexpr char en_US_JSON[] =
 "  \"battle.move_speed\": \"Super Movement\",\n"
 "  \"battle.move_speed.desc\": \"Movement Speed\",\n"
 "  \"battle.fast_respawn\": \"Fast Respawn\",\n"
-"  \"battle.force_respawn\": \"Force Respawn\",\n"
 "  \"battle.ghost\": \"Ghost Mode\",\n"
 "  \"battle.teleport_to_enemies_head\": \"Teleport to Enemy Head\",\n"
 "  \"battle.teleport_to_enemies_head.desc\": \"Requires Ghost\",\n"

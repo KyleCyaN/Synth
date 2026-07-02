@@ -29,6 +29,9 @@ const char* languages[] = {
     "ar_SA", "العربية"
 };
 
+static bool  g_LanguageChangePending = false;
+static std::string g_PendingLanguage;
+
 static ImVector<ImWchar> BuildArabicRanges()
 {
     ImFontGlyphRangesBuilder builder;
@@ -89,17 +92,17 @@ void UIMenu::Initialize()
 
     ImFontConfig arabicConfig;
     arabicConfig.MergeMode = true;
-    arabicConfig.SizePixels = 28.0f;
+    arabicConfig.SizePixels = 30.0f;
 
     io.Fonts->AddFontFromMemoryTTF(
         NotoSansArabic_Regular_ttf,
         NotoSansArabic_Regular_ttf_len,
-        28.0f,
+        30.0f,
         &arabicConfig,
         arabicRanges.Data
     );
 
-    Language::Instance().Load("zh_CN");
+    Language::Instance().Load("zh_CN_SP");
 }
 
 void UIMenu::Shutdown() {
@@ -155,12 +158,10 @@ void UIMenu::Render() {
             ImGui::Checkbox(LOC("battle.recoilless"), &isRecoilless);
             ImGui::Checkbox(LOC("battle.rapid_fire"), &isRapidFire);
             ImGui::Checkbox(LOC("battle.move_speed"), &isMoveSpeed);
-            ImGui::SameLine();
             ImGui::Text(LOC("battle.move_speed.desc"));
             ImGui::SameLine();
             ImGui::SliderFloat("##move_speed", &MoveSpeed::speed, 1.0f, 10.0f, "%.1f", ImGuiSliderFlags_None);
             ImGui::Checkbox(LOC("battle.fast_respawn"), &isFastRespawn);
-            ImGui::Checkbox(LOC("battle.force_respawn"), &isForceRespawn);
             ImGui::Checkbox(LOC("battle.ghost"), &isGhost);
             ImGui::SameLine();
             ImGui::Checkbox(LOC("battle.teleport_to_enemies_head"), &isTeleportToHead);
@@ -295,9 +296,14 @@ void UIMenu::Render() {
                 for (int i = 0; i < IM_ARRAYSIZE(languages); i += 2) {
                     if (ImGui::RadioButton(languages[i + 1], currentLang == i / 2)) {
                         currentLang = i / 2;
-                        Language::Instance().Load(languages[i]);
+                        g_PendingLanguage = languages[i];
+                        g_LanguageChangePending = true;
                     }
                 }
+            }
+            if (g_LanguageChangePending) {
+                Language::Instance().Load(g_PendingLanguage);
+                g_LanguageChangePending = false;
             }
             if (ImGui::CollapsingHeader(LOC("settings.opacity"))) {
                 ImGui::SliderFloat(LOC("settings.focused"), &g_FocusedAlpha, 0.1f, 1.0f, "%.2f");

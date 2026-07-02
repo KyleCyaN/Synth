@@ -61,7 +61,7 @@ bool GetPlayerHeadBone(const PlayerInfo& player, BoneInfo& outHead)
 
 bool IsAimingDownSight()
 {
-    static uintptr_t gameBase = reinterpret_cast<uintptr_t>(
+    static auto gameBase = reinterpret_cast<uintptr_t>(
         GetModuleHandleA("WindowsEntryPoint.Windows_W10.exe"));
     if (!gameBase) return false;
 

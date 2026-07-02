@@ -20,8 +20,8 @@ Language& Language::Instance()
 static LangCode LangCodeFromString(const std::string& code)
 {
     static const std::unordered_map<std::string, LangCode> map = {
-        {"zh_CN", LangCode::zh_CN_SP},
-        {"zh_CN", LangCode::zh_CN_TR},
+        {"zh_CN_SP", LangCode::zh_CN_SP},
+        {"zh_CN_TR", LangCode::zh_CN_TR},
         {"en_US", LangCode::en_US},
         {"ja_JP", LangCode::ja_JP},
         {"ru_RU", LangCode::ru_RU},

@@ -77,7 +77,6 @@ bool isAccuracy = false;
 bool isMoveSpeed = false;
 bool isRecoilless = false;
 bool isFastRespawn = false;
-bool isForceRespawn = false;
 
 template<auto On, auto Off>
 void Toggle(bool& cur, bool& last) {

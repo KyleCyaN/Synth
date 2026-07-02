@@ -10,13 +10,13 @@
 #include "Players.h"
 
 bool Aimbot::isEnabled = false;
-float Aimbot::smooth = 0.25f;
+float Aimbot::smooth = 0.35f;
 float Aimbot::g_targetPitchDelta = 0.0f;
 bool Aimbot::g_hasTarget = false;
 float Aimbot::g_debugTargetPos[3] = {0, 0, 0};
 bool Aimbot::g_debugHasTarget = false;
 float Aimbot::g_debugTargetScreenPos[2] = {0, 0};
-float Aimbot::g_aimFov = 10.0f;
+float Aimbot::g_aimFov = 25.0f;
 
 #define OFFSET_CONTROLLER_YAW   0x6C
 #define OFFSET_CONTROLLER_PITCH 0x64
@@ -82,6 +82,7 @@ void Aimbot::Run() {
     g_targetPitchDelta = 0.0f;
 
     if (!isEnabled) return;
+    if (!GetViewMatrix()) return;
 
     static bool initialized = false;
     if (!initialized) {

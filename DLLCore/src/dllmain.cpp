@@ -2,98 +2,301 @@
 #include <d3d11.h>
 #include <dxgi.h>
 #include <dxgi1_2.h>
+#include <dwmapi.h>
+
+#include <atomic>
+#include <chrono>
+
 #include "MinHook.h"
 #include "imgui.h"
-#include <chrono>
-#include <atomic>
-#include <ShellScalingApi.h>
+#include "imgui_internal.h"
+#include "backends/imgui_impl_dx11.h"
 
 #include "features.h"
-#include "imgui_internal.h"
 #include "memory.h"
 #include "menu.h"
-#include "backends/imgui_impl_dx11.h"
 #include "../Shared/shared.h"
 
-#pragma comment(lib, "Shcore.lib")
 #pragma comment(lib, "MinHook.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "Shcore.lib")
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "user32.lib")
 
-static ID3D11Device *g_pd3dDevice = nullptr;
-static ID3D11DeviceContext *g_pd3dDeviceContext = nullptr;
-static ID3D11RenderTargetView *g_pMainRTV = nullptr;
-static bool g_ImGuiInit = false;
-static HWND g_hWnd = nullptr;
+static ID3D11Device           *g_pd3dDevice         = nullptr;
+static ID3D11DeviceContext    *g_pd3dDeviceContext   = nullptr;
+static ID3D11RenderTargetView *g_pMainRTV            = nullptr;
+static bool                    g_ImGuiInit           = false;
+static HWND                    g_hFrameWnd           = nullptr;
+static HWND                    g_hCoreContentWnd     = nullptr;
+static DWORD                   g_Pid                 = 0;
 
-static HMODULE g_hModule = nullptr;
+static HMODULE       g_hModule      = nullptr;
 static std::atomic<bool> g_IsUnloading{false};
 
-static HANDLE g_hMapFile = nullptr;
-static SharedData *g_pShared = nullptr;
+static HANDLE      g_hMapFile  = nullptr;
+static SharedData *g_pShared   = nullptr;
 
-typedef HRESULT (WINAPI*Present_t)(IDXGISwapChain *, UINT, UINT);
+static HHOOK                g_hMouseHook          = nullptr;
+static std::atomic   g_MouseWheelAccum{0.0f};
+static std::atomic    g_MouseHookQuit{false};
+static DWORD                g_dwMouseHookThreadId = 0;
 
-Present_t OriginalPresent = nullptr;
-
-typedef HRESULT (WINAPI*ResizeBuffers_t)(IDXGISwapChain *, UINT, UINT, UINT, DXGI_FORMAT, UINT);
-
-ResizeBuffers_t OriginalResizeBuffers = nullptr;
-
-static auto g_BackBufferSize = ImVec2(0, 0);
-static RECT g_WindowRect = {0};
-
-static float GetDpiScale() {
-    static float scale = 1.0f;
-    static bool init = false;
-    if (!init && g_hWnd) {
-        UINT dpiX = 96, dpiY = 96;
-        GetDpiForMonitor(MonitorFromWindow(g_hWnd, MONITOR_DEFAULTTOPRIMARY),MDT_EFFECTIVE_DPI,&dpiX, &dpiY);
-        scale = dpiX / 96.0f;
-        init = true;
+static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HC_ACTION && wParam == WM_MOUSEWHEEL) {
+        const auto *p = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
+        g_MouseWheelAccum.fetch_add(
+            static_cast<float>(GET_WHEEL_DELTA_WPARAM(p->mouseData))
+                / static_cast<float>(WHEEL_DELTA));
     }
-    return scale;
+    return CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
+
+static DWORD WINAPI MouseHookThread(LPVOID)
+{
+    g_hMouseHook = SetWindowsHookExW(WH_MOUSE_LL, LowLevelMouseProc,
+                                      g_hModule, 0);
+    if (!g_hMouseHook)
+        return 1;
+
+    g_dwMouseHookThreadId = GetCurrentThreadId();
+
+    MSG msg;
+    while (!g_MouseHookQuit.load() && GetMessageW(&msg, nullptr, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+
+    if (g_hMouseHook) {
+        UnhookWindowsHookEx(g_hMouseHook);
+        g_hMouseHook = nullptr;
+    }
+    return 0;
+}
+
+static void InitMouseHook()
+{
+    CloseHandle(CreateThread(nullptr, 0, MouseHookThread, nullptr, 0, nullptr));
+}
+
+static void ShutdownMouseHook()
+{
+    g_MouseHookQuit.store(true);
+    if (g_dwMouseHookThreadId)
+        PostThreadMessageW(g_dwMouseHookThreadId, WM_QUIT, 0, 0);
+    for (int i = 0; i < 10 && g_hMouseHook; ++i)
+        Sleep(50);
+}
+
+static void ApplyMouseWheel()
+{
+    const float delta = g_MouseWheelAccum.exchange(0.0f);
+    if (delta != 0.0f)
+        ImGui::GetIO().MouseWheel += delta;
+}
+
+using Present_t       = HRESULT (WINAPI *)(IDXGISwapChain *, UINT, UINT);
+using ResizeBuffers_t = HRESULT (WINAPI *)(IDXGISwapChain *, UINT, UINT, UINT,
+                                           DXGI_FORMAT, UINT);
+
+static Present_t        OriginalPresent        = nullptr;
+static ResizeBuffers_t  OriginalResizeBuffers  = nullptr;
+
+static auto g_BackBufferSize = ImVec2(0.0f, 0.0f);
+
+static constexpr LONG RectArea(const RECT &r) noexcept {
+    return (r.right - r.left) * (r.bottom - r.top);
+}
+
+static BOOL CALLBACK FindFrameWindowProc(const HWND hWnd, const LPARAM lp) {
+    WCHAR cls[128];
+    if (!GetClassNameW(hWnd, cls, 128))
+        return TRUE;
+    if (wcscmp(cls, L"ApplicationFrameWindow") != 0)
+        return TRUE;
+
+    RECT r;
+    if (!GetWindowRect(hWnd, &r))
+        return TRUE;
+
+    const LONG area = RectArea(r);
+    if (area < 10000)
+        return TRUE;
+
+    WCHAR title[256];
+    GetWindowTextW(hWnd, title, 255);
+
+    if (wcsstr(title, L"Modern Combat 5") == nullptr &&
+        wcsstr(title, L"Modern Combat") == nullptr)
+        return TRUE;
+
+    auto *const result = reinterpret_cast<HWND *>(lp);
+    if (*result == nullptr) {
+        *result = hWnd;
+        return TRUE;
+    }
+
+    RECT existing;
+    if (GetWindowRect(*result, &existing)) {
+        if (area > RectArea(existing))
+            *result = hWnd;
+    }
+    return TRUE;
+}
+
+static HWND FindGameFrameWindow() {
+    HWND result = nullptr;
+    EnumWindows(FindFrameWindowProc, reinterpret_cast<LPARAM>(&result));
+
+    if (result)
+        return result;
+
+    struct FallbackCtx {
+        HWND best = nullptr;
+        LONG bestArea = 0;
+    } ctx;
+
+    EnumWindows([](const HWND hWnd, const LPARAM lp) -> BOOL {
+        auto *const c = reinterpret_cast<FallbackCtx *>(lp);
+
+        WCHAR cls[128];
+        if (!GetClassNameW(hWnd, cls, 128))
+            return TRUE;
+        if (wcscmp(cls, L"ApplicationFrameWindow") != 0)
+            return TRUE;
+
+        RECT r;
+        if (!GetWindowRect(hWnd, &r))
+            return TRUE;
+
+        const LONG area = RectArea(r);
+        if (area > c->bestArea) {
+            c->best = hWnd;
+            c->bestArea = area;
+        }
+        return TRUE;
+    }, reinterpret_cast<LPARAM>(&ctx));
+
+    return ctx.best;
+}
+
+struct FindCoreCtx {
+    HWND bestHwnd = nullptr;
+    LONG bestArea = 0;
+    RECT frameBounds{};
+};
+
+static BOOL CALLBACK FindCoreChildProc(const HWND hWnd, const LPARAM lp) {
+    auto *const ctx = reinterpret_cast<FindCoreCtx *>(lp);
+
+    WCHAR cls[128];
+    if (!GetClassNameW(hWnd, cls, 128))
+        return TRUE;
+
+    const bool isCoreClass = (wcsstr(cls, L"CoreWindow") != nullptr ||
+                              wcsstr(cls, L"Windows.UI.Core") != nullptr);
+
+    RECT r;
+    if (!GetWindowRect(hWnd, &r))
+        return TRUE;
+
+    const LONG w = r.right - r.left;
+    const LONG h = r.bottom - r.top;
+    if (w <= 0 || h <= 0)
+        return TRUE;
+
+    const LONG relTop = r.top - ctx->frameBounds.top;
+    if (relTop < 0)
+        return TRUE;
+
+    const LONG area = w * h;
+
+    if (isCoreClass) {
+        if (area > ctx->bestArea) {
+            ctx->bestHwnd = hWnd;
+            ctx->bestArea = area;
+        }
+    } else if (ctx->bestHwnd == nullptr && relTop > 0 && relTop < 200) {
+        if (area > ctx->bestArea) {
+            ctx->bestHwnd = hWnd;
+            ctx->bestArea = area;
+        }
+    }
+    return TRUE;
+}
+
+static void InitCoreContentWindow() {
+    if (!g_hFrameWnd)
+        return;
+    if (g_hCoreContentWnd && IsWindow(g_hCoreContentWnd))
+        return;
+
+    RECT frameBounds;
+    if (FAILED(DwmGetWindowAttribute(g_hFrameWnd,
+        DWMWA_EXTENDED_FRAME_BOUNDS,
+        &frameBounds, sizeof(frameBounds)))) {
+        GetWindowRect(g_hFrameWnd, &frameBounds);
+    }
+
+    FindCoreCtx ctx;
+    ctx.frameBounds = frameBounds;
+    EnumChildWindows(g_hFrameWnd, FindCoreChildProc, reinterpret_cast<LPARAM>(&ctx));
+
+    if (ctx.bestHwnd && IsWindow(ctx.bestHwnd))
+        g_hCoreContentWnd = ctx.bestHwnd;
 }
 
 static ImVec2 GetCorrectedMousePos() {
-    POINT p{};
-    GetCursorPos(&p);
+    if (!g_hCoreContentWnd || !IsWindow(g_hCoreContentWnd))
+        InitCoreContentWindow();
 
-    if (g_WindowRect.right == g_WindowRect.left)
-        GetWindowRect(g_hWnd, &g_WindowRect);
+    POINT cursor;
+    GetCursorPos(&cursor);
 
-    const float scale = GetDpiScale();
+    if (g_hCoreContentWnd) {
+        RECT cr;
+        if (GetWindowRect(g_hCoreContentWnd, &cr)) {
+            const LONG cw = cr.right - cr.left;
+            const LONG ch = cr.bottom - cr.top;
 
-    float x = static_cast<float>(p.x - g_WindowRect.left) * scale;
-    float y = static_cast<float>(p.y - g_WindowRect.top) * scale;
-
-    const auto wndW = static_cast<float>(g_WindowRect.right - g_WindowRect.left);
-    const auto wndH = static_cast<float>(g_WindowRect.bottom - g_WindowRect.top);
-
-    if (wndW <= 0.0f || wndH <= 0.0f || g_BackBufferSize.x <= 0.0f)
-        return {0, 0};
-
-    x *= g_BackBufferSize.x / wndW;
-    y *= g_BackBufferSize.y / wndH;
-
-    return {x, y};
-}
-
-void UpdateWindowTransparency() {
-    if (fabs(g_WindowAlpha - g_TargetAlpha) > 0.001f) {
-        g_WindowAlpha += (g_TargetAlpha - g_WindowAlpha)
-                * g_AlphaTransitionSpeed * ImGui::GetIO().DeltaTime;
-        g_WindowAlpha = fmaxf(0.0f, fminf(1.0f, g_WindowAlpha));
-        ImGui::GetStyle().Alpha = g_WindowAlpha;
+            if (cw > 0 && ch > 0 && g_BackBufferSize.x > 0.0f && g_BackBufferSize.y > 0.0f) {
+                const auto rx = static_cast<float>(cursor.x - cr.left);
+                const auto ry = static_cast<float>(cursor.y - cr.top);
+                return {
+                    rx * (g_BackBufferSize.x / static_cast<float>(cw)),
+                    ry * (g_BackBufferSize.y / static_cast<float>(ch))
+                };
+            }
+        }
     }
+
+    if (g_hFrameWnd) {
+        RECT bounds;
+        if (FAILED(DwmGetWindowAttribute(g_hFrameWnd,
+            DWMWA_EXTENDED_FRAME_BOUNDS, &bounds, sizeof(bounds)))) {
+            GetWindowRect(g_hFrameWnd, &bounds);
+        }
+
+        const auto rx = static_cast<float>(cursor.x - bounds.left);
+        const auto ry = static_cast<float>(cursor.y - bounds.top);
+        const auto bw = static_cast<float>(bounds.right - bounds.left);
+
+        if (const auto bh = static_cast<float>(bounds.bottom - bounds.top);
+            bw > 0.0f && bh > 0.0f && g_BackBufferSize.x > 0.0f && g_BackBufferSize.y > 0.0f)
+            return {
+                rx * (g_BackBufferSize.x / bw),
+                ry * (g_BackBufferSize.y / bh)
+            };
+    }
+
+    return {-FLT_MAX, -FLT_MAX};
 }
 
-void UpdateMouse(ImGuiIO &io) {
+static void UpdateMouse(ImGuiIO &io) {
     static bool lastDown = false;
 
     const uintptr_t mouseFlagsAddr = Memory::ResolveAddress(MOUSE_STATUS_EXPR);
-
     if (!mouseFlagsAddr) {
         io.MouseDown[0] = lastDown;
         io.AddMouseButtonEvent(0, lastDown);
@@ -101,19 +304,19 @@ void UpdateMouse(ImGuiIO &io) {
     }
 
     const bool curDown = (*reinterpret_cast<int *>(mouseFlagsAddr)) != 0;
-
     if (curDown != lastDown) {
         io.AddMouseButtonEvent(0, curDown);
         lastDown = curDown;
     }
-
     io.MouseDown[0] = curDown;
 }
 
-void UpdateInput() {
+static void UpdateInput() {
     ImGuiIO &io = ImGui::GetIO();
-    io.MousePos = GetCorrectedMousePos();
 
+    ApplyMouseWheel();
+
+    io.MousePos = GetCorrectedMousePos();
     UpdateMouse(io);
 
     if (ImGui::IsMouseDragging(0)) {
@@ -122,11 +325,9 @@ void UpdateInput() {
         g_TargetAlpha = g_FocusedAlpha;
     } else {
         const bool wasFocused = g_ImGuiHasFocus;
-
         g_ImGuiHasFocus = io.WantCaptureMouse &&
                           (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) ||
                            ImGui::IsAnyItemActive());
-
         if (g_ImGuiHasFocus != wasFocused)
             g_TargetAlpha = g_ImGuiHasFocus ? g_FocusedAlpha : g_UnfocusedAlpha;
     }
@@ -137,311 +338,236 @@ void UpdateInput() {
     last = now;
 }
 
-Present_t GetPresentAddress() {
-    ID3D11Device *pDevice = nullptr;
-    ID3D11DeviceContext *pContext = nullptr;
-    IDXGISwapChain1 *pSwapChain1 = nullptr;
-    IDXGIFactory2 *pFactory = nullptr;
+static void UpdateWindowTransparency() {
+    if (fabs(g_WindowAlpha - g_TargetAlpha) > 0.001f) {
+        g_WindowAlpha += (g_TargetAlpha - g_WindowAlpha)
+                * g_AlphaTransitionSpeed * ImGui::GetIO().DeltaTime;
+        g_WindowAlpha = fmaxf(0.0f, fminf(1.0f, g_WindowAlpha));
+        ImGui::GetStyle().Alpha = g_WindowAlpha;
+    }
+}
 
-    WNDCLASSEX wc = {
-        sizeof(WNDCLASSEX), CS_CLASSDC, DefWindowProc, 0L, 0L,
-        GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr,
-        L"D3D11_Temp_Window", nullptr
+template<int VtableIdx>
+static void *GetSwapChainVtableFunc() {
+    ID3D11Device        *pDevice     = nullptr;
+    ID3D11DeviceContext *pContext    = nullptr;
+    IDXGISwapChain1     *pSwapChain1 = nullptr;
+    IDXGIFactory2       *pFactory    = nullptr;
+
+    const WNDCLASSEXW wc = {
+        sizeof(WNDCLASSEXW), CS_CLASSDC, DefWindowProcW, 0L, 0L,
+        GetModuleHandleW(nullptr), nullptr, nullptr, nullptr, nullptr,
+        L"D3D11_VTable", nullptr
     };
-    RegisterClassEx(&wc);
-    const HWND hWnd = CreateWindowEx(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
-                                     CW_USEDEFAULT, CW_USEDEFAULT, 100, 100,
-                                     nullptr, nullptr, wc.hInstance, nullptr);
-    if (!hWnd) return nullptr;
+    RegisterClassExW(&wc);
+    HWND hWnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
+                                CW_USEDEFAULT, CW_USEDEFAULT, 100, 100,
+                                nullptr, nullptr, wc.hInstance, nullptr);
+    if (!hWnd)
+        return nullptr;
 
-    D3D_FEATURE_LEVEL featureLevel;
-    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
-                                   nullptr, 0, D3D11_SDK_VERSION,
-                                   &pDevice, &featureLevel, &pContext);
-    if (FAILED(hr) || !pDevice) {
+    D3D_FEATURE_LEVEL fl;
+    if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+        nullptr, 0, D3D11_SDK_VERSION,
+        &pDevice, &fl, &pContext))) {
         DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
+        UnregisterClassW(wc.lpszClassName, wc.hInstance);
         return nullptr;
     }
 
-    IDXGIDevice *pDXGIDevice = nullptr;
-    if (FAILED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&pDXGIDevice)))) {
-        pDevice->Release();
-        pContext->Release();
-        DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
-        return nullptr;
-    }
+    IDXGIDevice *pDXGI = nullptr;
     IDXGIAdapter *pAdapter = nullptr;
-    pDXGIDevice->GetAdapter(&pAdapter);
-    pDXGIDevice->Release();
+    pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&pDXGI));
+    pDXGI->GetAdapter(&pAdapter);
+    pDXGI->Release();
     pAdapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void **>(&pFactory));
     pAdapter->Release();
+
     if (!pFactory) {
         pDevice->Release();
         pContext->Release();
         DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
+        UnregisterClassW(wc.lpszClassName, wc.hInstance);
         return nullptr;
     }
 
     DXGI_SWAP_CHAIN_DESC1 desc = {};
-    desc.Width = 0;
-    desc.Height = 0;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.Stereo = FALSE;
+    desc.Width      = 0;
+    desc.Height     = 0;
+    desc.Format     = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
-    desc.SampleDesc.Quality = 0;
-    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    desc.BufferCount = 2;
-    desc.Scaling = DXGI_SCALING_NONE;
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    desc.Flags = 0;
-    hr = pFactory->CreateSwapChainForHwnd(pDevice, hWnd, &desc, nullptr, nullptr, &pSwapChain1);
+    desc.BufferUsage      = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.BufferCount      = 2;
+    desc.Scaling          = DXGI_SCALING_NONE;
+    desc.SwapEffect       = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    pFactory->CreateSwapChainForHwnd(pDevice, hWnd, &desc, nullptr, nullptr, &pSwapChain1);
     pFactory->Release();
-    if (FAILED(hr) || !pSwapChain1) {
+
+    if (!pSwapChain1) {
         pDevice->Release();
         pContext->Release();
         DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
+        UnregisterClassW(wc.lpszClassName, wc.hInstance);
         return nullptr;
     }
 
-    IDXGISwapChain *pSwapChain = nullptr;
-    pSwapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void **>(&pSwapChain));
-    Present_t presentAddress = nullptr;
-    if (pSwapChain) {
-        void **vtable = *reinterpret_cast<void ***>(pSwapChain);
-        presentAddress = (vtable && vtable[8]) ? static_cast<Present_t>(vtable[8]) : nullptr;
-        pSwapChain->Release();
+    IDXGISwapChain *pSC = nullptr;
+    pSwapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void **>(&pSC));
+    void *r = nullptr;
+    if (pSC) {
+        void **const v = *reinterpret_cast<void ***>(pSC);
+        r = v[VtableIdx];
+        pSC->Release();
     }
     pSwapChain1->Release();
     pDevice->Release();
     pContext->Release();
     DestroyWindow(hWnd);
-    UnregisterClass(wc.lpszClassName, wc.hInstance);
-    return presentAddress;
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    return r;
 }
 
-ResizeBuffers_t GetResizeBuffersAddress() {
-    ID3D11Device *pDevice = nullptr;
-    ID3D11DeviceContext *pContext = nullptr;
-    IDXGISwapChain1 *pSwapChain1 = nullptr;
-    IDXGIFactory2 *pFactory = nullptr;
-
-    const WNDCLASSEX wc = {
-        sizeof(WNDCLASSEX), CS_CLASSDC, DefWindowProc, 0L, 0L,
-        GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr,
-        L"D3D11_Resize_Temp_Window", nullptr
-    };
-    RegisterClassEx(&wc);
-    const HWND hWnd = CreateWindowEx(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
-                                     CW_USEDEFAULT, CW_USEDEFAULT, 100, 100,
-                                     nullptr, nullptr, wc.hInstance, nullptr);
-    if (!hWnd) return nullptr;
-
-    D3D_FEATURE_LEVEL featureLevel;
-    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
-                                   nullptr, 0, D3D11_SDK_VERSION,
-                                   &pDevice, &featureLevel, &pContext);
-    if (FAILED(hr) || !pDevice) {
-        DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
-        return nullptr;
-    }
-
-    IDXGIDevice *pDXGIDevice = nullptr;
-    if (FAILED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&pDXGIDevice)))) {
-        pDevice->Release();
-        pContext->Release();
-        DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
-        return nullptr;
-    }
-    IDXGIAdapter *pAdapter = nullptr;
-    pDXGIDevice->GetAdapter(&pAdapter);
-    pDXGIDevice->Release();
-    pAdapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void **>(&pFactory));
-    pAdapter->Release();
-    if (!pFactory) {
-        pDevice->Release();
-        pContext->Release();
-        DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
-        return nullptr;
-    }
-
-    DXGI_SWAP_CHAIN_DESC1 desc = {};
-    desc.Width = 0;
-    desc.Height = 0;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.Stereo = FALSE;
-    desc.SampleDesc.Count = 1;
-    desc.SampleDesc.Quality = 0;
-    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    desc.BufferCount = 2;
-    desc.Scaling = DXGI_SCALING_NONE;
-    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    desc.Flags = 0;
-    hr = pFactory->CreateSwapChainForHwnd(pDevice, hWnd, &desc, nullptr, nullptr, &pSwapChain1);
-    pFactory->Release();
-    if (FAILED(hr) || !pSwapChain1) {
-        pDevice->Release();
-        pContext->Release();
-        DestroyWindow(hWnd);
-        UnregisterClass(wc.lpszClassName, wc.hInstance);
-        return nullptr;
-    }
-
-    IDXGISwapChain *pSwapChain = nullptr;
-    pSwapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void **>(&pSwapChain));
-    ResizeBuffers_t resizeAddress = nullptr;
-    if (pSwapChain) {
-        void **vtable = *reinterpret_cast<void ***>(pSwapChain);
-        resizeAddress = (vtable && vtable[13]) ? static_cast<ResizeBuffers_t>(vtable[13]) : nullptr;
-        pSwapChain->Release();
-    }
-    pSwapChain1->Release();
-    pDevice->Release();
-    pContext->Release();
-    DestroyWindow(hWnd);
-    UnregisterClass(wc.lpszClassName, wc.hInstance);
-    return resizeAddress;
-}
-
-HRESULT WINAPI HookedResizeBuffers(IDXGISwapChain *pSwapChain, UINT BufferCount, UINT Width, UINT Height,
-                                   DXGI_FORMAT NewFormat, UINT SwapChainFlags) {
+static HRESULT WINAPI HookedResizeBuffers(IDXGISwapChain *const pSwapChain,
+                                          const UINT bc, const UINT w, const UINT h,
+                                          const DXGI_FORMAT fmt, const UINT flags) {
     if (g_pMainRTV) {
         g_pMainRTV->Release();
         g_pMainRTV = nullptr;
     }
-    const HRESULT hr = OriginalResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
-    if (SUCCEEDED(hr) && g_ImGuiInit) {
+    if (g_ImGuiInit)
         ImGui_ImplDX11_InvalidateDeviceObjects();
-    }
-    return hr;
+    return OriginalResizeBuffers(pSwapChain, bc, w, h, fmt, flags);
 }
 
-HRESULT WINAPI HookedPresent(IDXGISwapChain *pSwapChain, UINT SyncInterval, UINT Flags) {
+static HRESULT WINAPI HookedPresent(IDXGISwapChain *const pSwapChain,
+                                    const UINT SyncInterval, const UINT Flags) {
     if (g_IsUnloading)
         return OriginalPresent(pSwapChain, SyncInterval, Flags);
 
-    DXGI_SWAP_CHAIN_DESC sd;
-    pSwapChain->GetDesc(&sd);
-    HWND currentHwnd = sd.OutputWindow;
-    if (!currentHwnd)
-        currentHwnd = FindWindowW(L"Windows.UI.Core.CoreWindow", nullptr);
-    g_hWnd = currentHwnd;
-
-    if (!g_ImGuiInit) {
-        if (SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void **>(&g_pd3dDevice)))) {
-            g_pd3dDevice->GetImmediateContext(&g_pd3dDeviceContext);
-
-            g_WindowAlpha = 1.0f;
-            g_TargetAlpha = 1.0f;
-            g_FocusedAlpha = 1.0f;
-            g_UnfocusedAlpha = 0.5f;
-            g_AlphaTransitionSpeed = 5.0f;
-
-            ImGui::CreateContext();
-            ImGui::GetStyle().Colors[ImGuiCol_NavHighlight] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
-            ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
-
-            UIMenu::Initialize();
-            g_ImGuiInit = true;
-        }
-        if (!g_ImGuiInit) return OriginalPresent(pSwapChain, SyncInterval, Flags);
+    if (!g_hFrameWnd) {
+        g_hFrameWnd = FindGameFrameWindow();
+        if (g_hFrameWnd)
+            InitCoreContentWindow();
     }
 
-    ID3D11Texture2D *pBackBuffer = nullptr;
-    if (FAILED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&pBackBuffer))))
+    if (!g_ImGuiInit) {
+        if (SUCCEEDED(pSwapChain->GetDevice(__uuidof(ID3D11Device),
+            reinterpret_cast<void **>(&g_pd3dDevice)))) {
+            g_pd3dDevice->GetImmediateContext(&g_pd3dDeviceContext);
+
+            g_WindowAlpha           = 1.0f;
+            g_TargetAlpha           = 1.0f;
+            g_FocusedAlpha          = 1.0f;
+            g_UnfocusedAlpha        = 0.5f;
+            g_AlphaTransitionSpeed  = 5.0f;
+
+            ImGui::CreateContext();
+            ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+            UIMenu::Initialize();
+            g_ImGuiInit = true;
+
+            DXGI_SWAP_CHAIN_DESC sd;
+            pSwapChain->GetDesc(&sd);
+            if (sd.OutputWindow)
+                GetWindowThreadProcessId(sd.OutputWindow, &g_Pid);
+        }
+        if (!g_ImGuiInit)
+            return OriginalPresent(pSwapChain, SyncInterval, Flags);
+    }
+
+    ID3D11Texture2D *pBB = nullptr;
+    if (FAILED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void **>(&pBB))))
         return OriginalPresent(pSwapChain, SyncInterval, Flags);
 
     D3D11_TEXTURE2D_DESC bbDesc;
-    pBackBuffer->GetDesc(&bbDesc);
-    g_BackBufferSize = ImVec2(static_cast<float>(bbDesc.Width), static_cast<float>(bbDesc.Height));
+    pBB->GetDesc(&bbDesc);
+    g_BackBufferSize = ImVec2(static_cast<float>(bbDesc.Width),
+                              static_cast<float>(bbDesc.Height));
 
-    GetWindowRect(g_hWnd, &g_WindowRect);
+    if (!g_pMainRTV)
+        g_pd3dDevice->CreateRenderTargetView(pBB, nullptr, &g_pMainRTV);
+    pBB->Release();
 
-    if (!g_pMainRTV) {
-        g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pMainRTV);
-    }
-    pBackBuffer->Release();
+    if (!g_pMainRTV)
+        return OriginalPresent(pSwapChain, SyncInterval, Flags);
 
     ImGuiIO &io = ImGui::GetIO();
     io.DisplaySize = g_BackBufferSize;
-
     UpdateInput();
     UpdateWindowTransparency();
-
     ImGui_ImplDX11_NewFrame();
     ImGui::NewFrame();
-
     UIMenu::Render();
     ImGui::Render();
 
-    if (g_pMainRTV) {
-        ID3D11RenderTargetView *oldRTV = nullptr;
-        ID3D11DepthStencilView *oldDSV = nullptr;
-        g_pd3dDeviceContext->OMGetRenderTargets(1, &oldRTV, &oldDSV);
+    ID3D11RenderTargetView   *oldRTV = nullptr;
+    ID3D11DepthStencilView   *oldDSV = nullptr;
+    g_pd3dDeviceContext->OMGetRenderTargets(1, &oldRTV, &oldDSV);
 
-        ID3D11BlendState *oldBlendState = nullptr;
-        FLOAT oldBlendFactor[4];
-        UINT oldSampleMask = 0;
-        g_pd3dDeviceContext->OMGetBlendState(&oldBlendState, oldBlendFactor, &oldSampleMask);
+    ID3D11BlendState *oldBS = nullptr;
+    FLOAT bf[4];
+    UINT  sm;
+    g_pd3dDeviceContext->OMGetBlendState(&oldBS, bf, &sm);
 
-        UINT numViewports = 1;
-        D3D11_VIEWPORT oldViewport;
-        g_pd3dDeviceContext->RSGetViewports(&numViewports, &oldViewport);
+    UINT nvp = 1;
+    D3D11_VIEWPORT ovp;
+    g_pd3dDeviceContext->RSGetViewports(&nvp, &ovp);
 
-        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pMainRTV, nullptr);
-        D3D11_VIEWPORT vp = {0.0f, 0.0f, g_BackBufferSize.x, g_BackBufferSize.y, 0.0f, 1.0f};
-        g_pd3dDeviceContext->RSSetViewports(1, &vp);
+    g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pMainRTV, nullptr);
 
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    const D3D11_VIEWPORT vp = {
+        0.0f, 0.0f,
+        g_BackBufferSize.x, g_BackBufferSize.y,
+        0.0f, 1.0f
+    };
+    g_pd3dDeviceContext->RSSetViewports(1, &vp);
 
-        g_pd3dDeviceContext->OMSetRenderTargets(1, &oldRTV, oldDSV);
-        g_pd3dDeviceContext->RSSetViewports(1, &oldViewport);
-        g_pd3dDeviceContext->OMSetBlendState(oldBlendState, oldBlendFactor, oldSampleMask);
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-        if (oldRTV) oldRTV->Release();
-        if (oldDSV) oldDSV->Release();
-        if (oldBlendState) oldBlendState->Release();
-    }
+    g_pd3dDeviceContext->OMSetRenderTargets(1, &oldRTV, oldDSV);
+    g_pd3dDeviceContext->RSSetViewports(1, &ovp);
+    g_pd3dDeviceContext->OMSetBlendState(oldBS, bf, sm);
+
+    if (oldRTV) oldRTV->Release();
+    if (oldDSV) oldDSV->Release();
+    if (oldBS)  oldBS->Release();
 
     return OriginalPresent(pSwapChain, SyncInterval, Flags);
 }
 
-bool InstallHooks() {
-    const Present_t presentTarget = GetPresentAddress();
-    if (!presentTarget) {
+static bool InstallHooks() {
+    const auto pPres   = reinterpret_cast<Present_t>(GetSwapChainVtableFunc<8>());
+    const auto pResize = reinterpret_cast<ResizeBuffers_t>(GetSwapChainVtableFunc<13>());
+
+    if (!pPres)
         return false;
-    }
-
-    GetResizeBuffersAddress();
-
-    if (MH_Initialize() != MH_OK) {
+    if (MH_Initialize() != MH_OK)
         return false;
-    }
-
-    if (MH_CreateHook(presentTarget, &HookedPresent, reinterpret_cast<void **>(&OriginalPresent)) != MH_OK ||
-        MH_EnableHook(presentTarget) != MH_OK) {
+    if (MH_CreateHook(reinterpret_cast<void *>(pPres),
+                      reinterpret_cast<void *>(&HookedPresent),
+                      reinterpret_cast<void **>(&OriginalPresent)) != MH_OK)
         return false;
-    }
+    MH_EnableHook(reinterpret_cast<void *>(pPres));
 
+    if (pResize) {
+        if (MH_CreateHook(reinterpret_cast<void *>(pResize),
+                          reinterpret_cast<void *>(&HookedResizeBuffers),
+                          reinterpret_cast<void **>(&OriginalResizeBuffers)) == MH_OK)
+            MH_EnableHook(reinterpret_cast<void *>(pResize));
+    }
     return true;
 }
 
-void ShutdownAndCleanup() {
+static void ShutdownAndCleanup() {
     g_IsUnloading = true;
+
+    ShutdownMouseHook();
 
     if (g_pShared) {
         g_pShared->unloadRequested = 2;
         Sleep(500);
     }
-
     MH_DisableHook(nullptr);
     MH_Uninitialize();
 
@@ -451,37 +577,34 @@ void ShutdownAndCleanup() {
         ImGui::DestroyContext();
         g_ImGuiInit = false;
     }
-
     if (g_pMainRTV) {
         g_pMainRTV->Release();
         g_pMainRTV = nullptr;
     }
-
     if (g_pd3dDeviceContext) {
         g_pd3dDeviceContext->Release();
         g_pd3dDeviceContext = nullptr;
     }
-
     if (g_pd3dDevice) {
         g_pd3dDevice->Release();
         g_pd3dDevice = nullptr;
     }
 }
 
-DWORD WINAPI UnloadThread(LPVOID lpParam) {
-    const auto hModule = static_cast<HMODULE>(lpParam);
+static DWORD WINAPI UnloadThread(LPVOID lp) {
+    const auto hMod = static_cast<HMODULE>(lp);
 
-    for (int retry = 0; retry < 20; ++retry) {
-        g_hMapFile = OpenFileMappingW(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, L"Local\\MySharedMemory");
+    for (int i = 0; i < 20; ++i) {
+        g_hMapFile = OpenFileMappingW(FILE_MAP_READ | FILE_MAP_WRITE,
+                                      FALSE, L"Local\\MySharedMemory");
         if (g_hMapFile) break;
         Sleep(500);
     }
-    if (!g_hMapFile) {
+    if (!g_hMapFile)
         return 0;
-    }
 
-    g_pShared = static_cast<SharedData *>(MapViewOfFile(g_hMapFile, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0,
-                                                        sizeof(SharedData)));
+    g_pShared = static_cast<SharedData *>(MapViewOfFile(
+        g_hMapFile, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, sizeof(SharedData)));
     if (!g_pShared) {
         CloseHandle(g_hMapFile);
         return 0;
@@ -489,42 +612,41 @@ DWORD WINAPI UnloadThread(LPVOID lpParam) {
 
     while (g_pShared->unloadRequested != 1) {
         Sleep(500);
-        if (g_pShared->unloadRequested == 2) {
-            goto cleanup_exit;
-        }
+        if (g_pShared->unloadRequested == 2)
+            goto exit;
     }
 
     g_IsUnloading = true;
     Sleep(500);
-
     ShutdownAndCleanup();
 
-    if (g_pShared) {
+    if (g_pShared)
         g_pShared->unloadRequested = 2;
-        Sleep(300);
-    }
+    Sleep(300);
 
-cleanup_exit:
-    if (g_pShared) UnmapViewOfFile(g_pShared);
-    if (g_hMapFile) CloseHandle(g_hMapFile);
-    g_pShared = nullptr;
-    g_hMapFile = nullptr;
-
-    FreeLibraryAndExitThread(hModule, 0);
+exit:
+    if (g_pShared)
+        UnmapViewOfFile(g_pShared);
+    if (g_hMapFile)
+        CloseHandle(g_hMapFile);
+    g_pShared   = nullptr;
+    g_hMapFile  = nullptr;
+    FreeLibraryAndExitThread(hMod, 0);
 }
 
-DWORD WINAPI InitThread(LPVOID) {
+static DWORD WINAPI InitThread(LPVOID) {
     Sleep(500);
     InstallHooks();
+    InitMouseHook();
     return 0;
 }
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason, LPVOID lpReserved) {
-    if (ul_reason == DLL_PROCESS_ATTACH) {
-        g_hModule = hModule;
-        DisableThreadLibraryCalls(hModule);
-        CloseHandle(CreateThread(nullptr, 0, InitThread, nullptr, 0, nullptr));
-        CloseHandle(CreateThread(nullptr, 0, UnloadThread, hModule, 0, nullptr));
+BOOL APIENTRY DllMain(const HMODULE hMod, const DWORD reason, LPVOID) {
+    if (reason == DLL_PROCESS_ATTACH) {
+        g_hModule = hMod;
+        DisableThreadLibraryCalls(hMod);
+        CloseHandle(CreateThread(nullptr, 0, InitThread,   nullptr, 0, nullptr));
+        CloseHandle(CreateThread(nullptr, 0, UnloadThread, hMod,    0, nullptr));
     }
     return TRUE;
 }

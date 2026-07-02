@@ -75,7 +75,6 @@ extern bool isAccuracy;
 extern bool isMoveSpeed;
 extern bool isRecoilless;
 extern bool isFastRespawn;
-extern bool isForceRespawn;
 
 extern uintptr_t g_ModuleBase;
 extern DWORD g_GlobalPointerOffset;

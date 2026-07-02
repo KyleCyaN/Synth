@@ -28,7 +28,6 @@
   "battle.move_speed": "Super Movement",
   "battle.move_speed.desc": "Movement Speed",
   "battle.fast_respawn": "Fast Respawn",
-  "battle.force_respawn": "Force Respawn",
   "battle.ghost": "Ghost Mode",
   "battle.teleport_to_enemies_head": "Teleport to Enemy Head",
   "battle.teleport_to_enemies_head.desc": "Requires Ghost",

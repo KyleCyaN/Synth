@@ -32,7 +32,6 @@ static constexpr char zh_CN_SP_JSON[] =
 "  \"battle.move_speed\": \"快速移动\",\n"
 "  \"battle.move_speed.desc\": \"移动速度\",\n"
 "  \"battle.fast_respawn\": \"快速部署\",\n"
-"  \"battle.force_respawn\": \"强制部署\",\n"
 "  \"battle.ghost\": \"幽灵模式\",\n"
 "  \"battle.teleport_to_enemies_head\": \"瞬移至敌人头顶\",\n"
 "  \"battle.teleport_to_enemies_head.desc\": \"需开启幽灵模式\",\n"
